@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1675465971",
+    "@mediapipe/pose": "^0.5.1675469404",
     "@tailwindcss/vite": "^4.3.0",
     "axios": "^1.16.1",
     "clsx": "^2.1.1",
@@ -18,6 +20,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",
+    "socket.io-client": "^4.7.2",
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {

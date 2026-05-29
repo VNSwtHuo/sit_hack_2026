@@ -11,3 +11,22 @@ body {
   margin: 0;
   font-family: Inter, sans-serif;
 }
+
+button {
+  cursor: pointer;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid rgb(64 64 64);
+  border-radius: 0.375rem;
+  background: rgb(23 23 23);
+  color: rgb(245 245 245);
+}
+
+.icon-button:hover {
+  border-color: rgb(16 185 129);
+}
