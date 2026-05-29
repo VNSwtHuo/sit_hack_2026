@@ -95,27 +95,33 @@ export function registerSocketHandlers(io: Server) {
         return;
       }
 
-      const previousObstacleId = session.currentObstacle?.id;
       emitGameState(socket, session);
 
-      if (session.currentObstacle && session.currentObstacle.id !== previousObstacleId) {
+      const obstacleId = session.currentObstacle?.id ?? null;
+      if (session.currentObstacle && obstacleId !== session.lastEmittedObstacleId) {
         socket.emit('obstacle', session.currentObstacle);
       }
+      session.lastEmittedObstacleId = obstacleId;
 
-      if (session.boostUntil && session.boostUntil > now && session.comboCount > 0 && session.comboCount % 3 === 0) {
-        socket.emit('brainrot-boost', {
-          comboCount: session.comboCount,
-          boostUntil: session.boostUntil,
-          zombieDistance: session.zombieDistance,
-        });
+      const boostActive = Boolean(session.boostUntil && session.boostUntil > now);
+      if (boostActive && session.comboCount > 0 && session.comboCount % 3 === 0) {
+        if (session.boostAnnouncedCombo !== session.comboCount) {
+          socket.emit('brainrot-boost', {
+            comboCount: session.comboCount,
+            boostUntil: session.boostUntil as number,
+            zombieDistance: session.zombieDistance,
+          });
+          session.boostAnnouncedCombo = session.comboCount;
+        }
       }
 
-      if (session.gameState === 'GAME_OVER') {
+      if (session.gameState === 'GAME_OVER' && !session.gameOverEmitted) {
         socket.emit('game-over', {
           sessionId: session.sessionId,
           finalScore: Math.round(session.score),
           survivalTime: session.survivalTime,
         });
+        session.gameOverEmitted = true;
       }
     });
   }, GAME_UPDATE_MS);

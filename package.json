@@ -1,0 +1,16 @@
+{
+  "name": "zombie-run",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zombie Run — webcam motion-controlled apocalypse survival game (React + Socket.IO).",
+  "scripts": {
+    "dev": "concurrently -k -n backend,frontend -c green,cyan \"PORT=4000 npm run dev --prefix backend\" \"npm run dev --prefix sit-hack-frontend -- --port 5173 --strictPort\"",
+    "build": "npm run build --prefix backend && npm run build --prefix sit-hack-frontend",
+    "start": "npm run start --prefix backend",
+    "install:all": "npm install --prefix backend && npm install --prefix sit-hack-frontend",
+    "postinstall": "npm run install:all"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

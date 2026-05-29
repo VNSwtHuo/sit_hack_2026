@@ -27,6 +27,9 @@ export function createSession(playerName = 'Runner'): GameSession {
     lastGameUpdate: now,
     score: 0,
     boostUntil: null,
+    lastEmittedObstacleId: null,
+    boostAnnouncedCombo: 0,
+    gameOverEmitted: false,
   };
 }
 
@@ -72,6 +75,9 @@ export function startCalibration(session: GameSession) {
   session.boostUntil = null;
   session.nextObstacleAt = now + randomBetween(config.obstacleMinMs, config.obstacleMaxMs);
   session.lastGameUpdate = now;
+  session.lastEmittedObstacleId = null;
+  session.boostAnnouncedCombo = 0;
+  session.gameOverEmitted = false;
 }
 
 export function confirmCalibration(session: GameSession) {

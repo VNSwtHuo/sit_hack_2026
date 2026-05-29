@@ -30,3 +30,61 @@ button {
 .icon-button:hover {
   border-color: rgb(16 185 129);
 }
+
+/* CRT-style scanlines for the dystopian landing */
+.scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.04) 0px,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Glitch text effect */
+.glitch {
+  position: relative;
+  text-shadow: 0 0 12px rgba(132, 204, 22, 0.35);
+}
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.glitch::before {
+  color: #f472b6;
+  transform: translate(2px, 0);
+  animation: glitch-shift 2.4s infinite linear alternate-reverse;
+  clip-path: inset(0 0 55% 0);
+}
+
+.glitch::after {
+  color: #38bdf8;
+  transform: translate(-2px, 0);
+  animation: glitch-shift 1.7s infinite linear alternate-reverse;
+  clip-path: inset(55% 0 0 0);
+}
+
+@keyframes glitch-shift {
+  0% {
+    transform: translate(2px, -1px);
+  }
+  25% {
+    transform: translate(-2px, 1px);
+  }
+  50% {
+    transform: translate(1px, 1px);
+  }
+  75% {
+    transform: translate(-1px, -1px);
+  }
+  100% {
+    transform: translate(2px, 1px);
+  }
+}
