@@ -1,11 +1,14 @@
 import type { Difficulty, ObstacleType } from '../types.js';
 
-export const DEFAULT_DIFFICULTY: Difficulty = 'NORMAL';
+export const DEFAULT_DIFFICULTY: Difficulty = 'EASY';
 export const GAME_UPDATE_MS = 100;
 export const MOTION_STALE_MS = 650;
 export const OBSTACLE_TYPES: ObstacleType[] = ['JUMP', 'DODGE_LEFT', 'DODGE_RIGHT', 'SIX_SEVEN'];
+export const SPEED_INCREMENT_INTERVAL_MS = 15000;
+export const SPEED_INCREMENT = 0.08;
+export const MAX_SPEED_MULTIPLIER = 2.2;
 
-export const DIFFICULTY_CONFIGS: Record<Difficulty, {
+export interface DifficultyConfig {
   chaseRate: number;
   recoveryRate: number;
   obstacleMinMs: number;
@@ -15,7 +18,9 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, {
   comboBonus: number;
   maxDistance: number;
   startingDistance: number;
-}> = {
+}
+
+export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
   EASY: {
     chaseRate: 0.16,
     recoveryRate: 0.28,
@@ -50,3 +55,23 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, {
     startingDistance: 58,
   },
 };
+
+export function getSpeedMultiplier(survivalTimeSeconds: number) {
+  const elapsedMs = Math.max(0, survivalTimeSeconds * 1000);
+  const increments = Math.floor(elapsedMs / SPEED_INCREMENT_INTERVAL_MS);
+  return Math.min(MAX_SPEED_MULTIPLIER, 1 + increments * SPEED_INCREMENT);
+}
+
+export function getDynamicDifficultyConfig(survivalTimeSeconds: number): DifficultyConfig {
+  const base = DIFFICULTY_CONFIGS.EASY;
+  const speedMultiplier = getSpeedMultiplier(survivalTimeSeconds);
+
+  return {
+    ...base,
+    chaseRate: base.chaseRate * speedMultiplier,
+    obstacleMinMs: Math.max(2200, Math.round(base.obstacleMinMs / speedMultiplier)),
+    obstacleMaxMs: Math.max(3600, Math.round(base.obstacleMaxMs / speedMultiplier)),
+    obstacleDurationMs: Math.max(1800, Math.round(base.obstacleDurationMs / Math.sqrt(speedMultiplier))),
+    missPenalty: Math.round(base.missPenalty * speedMultiplier),
+  };
+}

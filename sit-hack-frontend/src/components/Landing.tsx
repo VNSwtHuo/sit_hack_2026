@@ -1,20 +1,11 @@
 import { motion } from 'framer-motion';
-import type { Difficulty } from '../motion/motionTypes';
-
-const DIFFICULTIES: Array<{ id: Difficulty; label: string; blurb: string; skulls: string }> = [
-  { id: 'EASY', label: 'EASY', blurb: 'Slow horde · forgiving timing', skulls: '🧟' },
-  { id: 'NORMAL', label: 'NORMAL', blurb: 'They are hungry · stay sharp', skulls: '🧟🧟' },
-  { id: 'HARD', label: 'HARD', blurb: 'Relentless swarm · sprint or die', skulls: '🧟🧟🧟' },
-];
 
 interface LandingProps {
-  difficulty: Difficulty;
   connected: boolean;
-  onSelectDifficulty: (difficulty: Difficulty) => void;
   onStart: () => void;
 }
 
-export function Landing({ difficulty, connected, onSelectDifficulty, onStart }: LandingProps) {
+export function Landing({ connected, onStart }: LandingProps) {
   return (
     <div className="relative grid min-h-screen place-items-center overflow-hidden bg-neutral-950 px-4 text-neutral-100">
       <div className="scanlines pointer-events-none absolute inset-0 opacity-30" />
@@ -39,28 +30,13 @@ export function Landing({ difficulty, connected, onSelectDifficulty, onStart }: 
           </p>
         </div>
 
-        <div className="grid w-full gap-3 sm:grid-cols-3">
-          {DIFFICULTIES.map((option) => {
-            const active = option.id === difficulty;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => onSelectDifficulty(option.id)}
-                className={`group flex flex-col items-center gap-2 rounded-xl border p-5 transition ${
-                  active
-                    ? 'border-lime-400 bg-lime-400/10 shadow-[0_0_30px_-8px_rgba(132,204,22,0.7)]'
-                    : 'border-neutral-800 bg-neutral-900/70 hover:border-neutral-600'
-                }`}
-              >
-                <span className="text-3xl transition group-hover:scale-110">{option.skulls}</span>
-                <span className={`text-lg font-bold tracking-widest ${active ? 'text-lime-300' : 'text-neutral-200'}`}>
-                  {option.label}
-                </span>
-                <span className="text-xs text-neutral-500">{option.blurb}</span>
-              </button>
-            );
-          })}
+        <div className="w-full rounded-xl border border-neutral-800 bg-neutral-900/70 p-5">
+          <div className="flex flex-col items-center gap-2 text-sm text-neutral-400 sm:flex-row sm:justify-center">
+            <span className="text-3xl">🧟</span>
+            <span>
+              The horde starts slow, then gets faster the longer you survive.
+            </span>
+          </div>
         </div>
 
         <button

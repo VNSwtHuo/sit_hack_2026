@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSocket } from './socket';
-import type { Difficulty, MotionPayload, PublicGameState } from './motionTypes';
+import type { MotionPayload, PublicGameState } from './motionTypes';
 
 export function useGameSocket() {
   const socketRef = useRef(getSocket());
@@ -46,7 +46,6 @@ export function useGameSocket() {
   const restart = useCallback(() => socketRef.current.emit('restart'), []);
   const pause = useCallback(() => socketRef.current.emit('pause'), []);
   const resume = useCallback(() => socketRef.current.emit('resume'), []);
-  const setDifficulty = useCallback((difficulty: Difficulty) => socketRef.current.emit('set-difficulty', difficulty), []);
 
   return {
     connected,
@@ -57,7 +56,6 @@ export function useGameSocket() {
     restart,
     pause,
     resume,
-    setDifficulty,
     emitMotion,
   };
 }

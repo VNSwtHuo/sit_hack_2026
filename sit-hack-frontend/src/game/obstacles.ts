@@ -15,15 +15,15 @@ export const OBSTACLE_META: Record<ObstacleType, ObstacleMeta> = {
     accent: '#facc15',
   },
   DODGE_LEFT: {
-    label: 'DODGE LEFT',
-    hint: 'Lean to your left',
-    emoji: '⬅️',
-    accent: '#38bdf8',
-  },
-  DODGE_RIGHT: {
     label: 'DODGE RIGHT',
     hint: 'Lean to your right',
     emoji: '➡️',
+    accent: '#38bdf8',
+  },
+  DODGE_RIGHT: {
+    label: 'DODGE LEFT',
+    hint: 'Lean to your left',
+    emoji: '⬅️',
     accent: '#38bdf8',
   },
   SIX_SEVEN: {
