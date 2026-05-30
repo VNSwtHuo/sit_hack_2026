@@ -31,7 +31,6 @@ export interface GameSession {
   playerSpeed: number;
   runningIntensity: number;
   zombieDistance: number;
-  stamina: number;
   comboCount: number;
   survivalTime: number;
   currentObstacle: Obstacle | null;
@@ -56,7 +55,6 @@ export interface PublicGameState {
   playerSpeed: number;
   runningIntensity: number;
   zombieDistance: number;
-  stamina: number;
   comboCount: number;
   survivalTime: number;
   currentObstacle: Obstacle | null;

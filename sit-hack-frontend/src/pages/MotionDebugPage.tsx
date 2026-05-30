@@ -208,10 +208,6 @@ export function MotionDebugPage() {
 
             <DebugCard title="Backend Game">
               <Metric
-                label="Stamina"
-                value={current ? `${current.stamina}/100` : "-"}
-              />
-              <Metric
                 label="Zombie distance"
                 value={current?.zombieDistance.toFixed(1) ?? "-"}
               />

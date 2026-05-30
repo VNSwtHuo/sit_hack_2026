@@ -83,7 +83,7 @@ export function buildCalibrationProfile(samples: CalibrationSample[]): Calibrati
     hipY,
     bodyScale,
     laneThreshold: Math.max(0.09, bodyScale * 0.32),
-    jumpThreshold: Math.max(0.045, bodyScale * 0.18),
+    jumpThreshold: Math.max(0.03, bodyScale * 0.12),
     wristHighY: shoulderY - bodyScale * 0.12,
     wristLowY: hipY + bodyScale * 0.05,
     confidence,
