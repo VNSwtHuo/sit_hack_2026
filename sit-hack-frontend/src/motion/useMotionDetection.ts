@@ -153,16 +153,24 @@ function updateSixtySeven(
   phaseRef: MutableRefObject<WristPhase>,
   countRef: MutableRefObject<number>,
 ) {
-  const bothHigh = leftWristY < calibration.wristHighY && rightWristY < calibration.wristHighY;
-  const bothLow = leftWristY > calibration.wristLowY && rightWristY > calibration.wristLowY;
-  const nextPhase: WristPhase = bothHigh ? 'high' : bothLow ? 'low' : phaseRef.current;
+  // Calculate a lenient midpoint threshold between High and Low
+  const midPointY = (calibration.wristHighY + calibration.wristLowY) / 2;
 
-  if (phaseRef.current !== 'unknown' && nextPhase !== phaseRef.current) {
+  // Lenient check: Is one wrist above the midpoint and the other below it?
+  const leftHighRightLow = leftWristY < midPointY && rightWristY > midPointY;
+  const leftLowRightHigh = leftWristY > midPointY && rightWristY < midPointY;
+
+  // Determine the next phase
+  const nextPhase: WristPhase = leftHighRightLow ? 'leftHigh' : leftLowRightHigh ? 'rightHigh' : phaseRef.current;
+
+  // Count exactly one full iteration (Left High -> Right High -> Left High = +1 count)
+  if (phaseRef.current === 'rightHigh' && nextPhase === 'leftHigh') {
     countRef.current += 1;
   }
 
   phaseRef.current = nextPhase;
 }
+
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
