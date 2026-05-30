@@ -18,7 +18,7 @@ export function CountdownOverlay({ value }: { value: number }) {
         key={value}
         initial={{ scale: 0.4, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="text-[10rem] font-black leading-none text-lime-300 drop-shadow-[0_0_30px_rgba(132,204,22,0.8)]"
+        className="text-[10rem] font-black leading-none text-[#98d57b] drop-shadow-[0_0_30px_rgba(132,204,22,0.8)]"
       >
         {value > 0 ? value : "RUN!"}
       </motion.span>
@@ -85,7 +85,7 @@ export function CalibratingOverlay({
     <Backdrop>
       <div className="flex w-full max-w-sm flex-col items-center gap-4">
         <span className="text-5xl">🤖</span>
-        <h2 className="text-2xl font-black uppercase tracking-widest text-lime-300">
+        <h2 className="text-2xl font-black uppercase tracking-widest text-[#98d57b]">
           Calibrating
         </h2>
         <p className="text-sm text-neutral-400">
@@ -115,7 +115,7 @@ export function PausedOverlay({ onResume }: { onResume: () => void }) {
         <button
           type="button"
           onClick={onResume}
-          className="rounded-xl bg-lime-400 px-8 py-3 font-bold uppercase tracking-widest text-neutral-950 transition hover:bg-lime-300"
+          className="rounded-xl bg-[#98d57b] px-8 py-3 font-bold uppercase tracking-widest text-neutral-950 transition hover:bg-[#98d57b]/90"
         >
           Resume
         </button>
@@ -150,15 +150,18 @@ export function GameOverOverlay({
           <img
             src={faceSnapshot}
             alt="Your face after the zombie attack"
-            className="h-32 w-32 rounded-full border-4 border-red-500 object-cover"
+            className="h-32 w-32 rounded-full border-4 border-white object-cover"
           />
         ) : (
           <span className="text-7xl">💀</span>
         )}
-        <h2
+        {/* <h2
           className="glitch text-5xl font-black uppercase tracking-widest text-red-500"
           data-text="CAUGHT!"
         >
+          CAUGHT!
+        </h2> */}
+        <h2 className="zombie-title text-[100px] font-black uppercase leading-none text-red-500">
           CAUGHT!
         </h2>
         <p className="max-w-sm text-sm text-neutral-300">
@@ -189,7 +192,7 @@ export function GameOverOverlay({
           <button
             type="button"
             onClick={onPlayAgain}
-            className="flex-1 rounded-xl bg-lime-400 px-6 py-3 font-bold uppercase tracking-widest text-neutral-950 transition hover:bg-lime-300"
+            className="flex-1 rounded-xl bg-[#98d57b] px-6 py-3 font-bold uppercase tracking-widest text-neutral-950 transition hover:bg-[#98d57b]/90"
           >
             Play again
           </button>
