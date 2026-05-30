@@ -6,9 +6,6 @@ import {
   getSpeedMultiplier,
   MOTION_STALE_MS,
   OBSTACLE_TYPES,
-  SWAMP_INTERVAL_MAX_MS,
-  SWAMP_INTERVAL_MIN_MS,
-  SWAMP_STAGE_DURATION_MS,
 } from './constants.js';
 import { clamp, randomBetween } from './utils.js';
 
@@ -32,8 +29,6 @@ export function createSession(playerName = 'Runner'): GameSession {
     lastMotion: null,
     lastSixtySevenCount: 0,
     nextObstacleAt: now + config.obstacleMinMs,
-    nextSwampAt: now + randomBetween(SWAMP_INTERVAL_MIN_MS, SWAMP_INTERVAL_MAX_MS),
-    swampActiveUntil: null,
     countdownEndsAt: null,
     lastGameUpdate: now,
     score: 0,
@@ -58,7 +53,6 @@ export function toPublicGameState(session: GameSession): PublicGameState {
     currentObstacle: session.currentObstacle,
     score: session.score,
     countdownEndsAt: session.countdownEndsAt,
-    swampActiveUntil: session.swampActiveUntil,
     boostUntil: session.boostUntil,
   };
 }
@@ -76,10 +70,8 @@ export function startCalibration(session: GameSession) {
   session.zombieDistance = config.startingDistance;
   session.score = 0;
   session.countdownEndsAt = null;
-  session.swampActiveUntil = null;
   session.boostUntil = null;
   session.nextObstacleAt = now + randomBetween(config.obstacleMinMs, config.obstacleMaxMs);
-  session.nextSwampAt = now + randomBetween(SWAMP_INTERVAL_MIN_MS, SWAMP_INTERVAL_MAX_MS);
   session.lastGameUpdate = now;
   session.lastEmittedObstacleId = null;
   session.boostAnnouncedCombo = 0;
@@ -89,7 +81,6 @@ export function startCalibration(session: GameSession) {
 export function confirmCalibration(session: GameSession) {
   session.gameState = 'COUNTDOWN';
   session.countdownEndsAt = Date.now() + 3200;
-  session.swampActiveUntil = null;
   session.currentObstacle = null;
 }
 
@@ -237,15 +228,6 @@ export function tickSession(session: GameSession, now: number) {
 
   session.survivalTime = nextSurvivalTime;
   session.playerSpeed = effectiveSpeed;
-
-  if (!session.swampActiveUntil && now >= session.nextSwampAt) {
-    session.swampActiveUntil = now + SWAMP_STAGE_DURATION_MS;
-    session.nextSwampAt = session.swampActiveUntil + randomBetween(SWAMP_INTERVAL_MIN_MS, SWAMP_INTERVAL_MAX_MS);
-  }
-
-  if (session.swampActiveUntil && now >= session.swampActiveUntil) {
-    session.swampActiveUntil = null;
-  }
 
   const pushBack = Math.max(0, effectiveSpeed - 0.16) * config.recoveryRate * deltaSeconds * 42;
   const pullIn = (1 - Math.min(effectiveSpeed, 1)) * config.chaseRate * deltaSeconds * 22;

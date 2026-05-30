@@ -21,7 +21,6 @@ const MOTION_SEND_INTERVAL_MS = 66;
 export function useZombieGame() {
   const game = useGameSocket();
   const [now, setNow] = useState(() => Date.now());
-  const swampActive = Boolean(game.gameState?.swampActiveUntil && game.gameState.swampActiveUntil > now);
   const {
     videoRef,
     canvasRef,
@@ -32,7 +31,7 @@ export function useZombieGame() {
     error: cameraError,
     start,
     stop,
-  } = usePoseTracker(swampActive);
+  } = usePoseTracker();
 
   const { startCalibration, confirmCalibration } = game;
 

@@ -14,6 +14,8 @@ const HEAD_PRESETS: Array<{ path: string; label: string }> = [
 interface LandingProps {
   connected: boolean;
   onStart: () => void;
+  musicOn: boolean;
+  onToggleMusic: () => void;
   zombieFace: string | null;
   headAvatar: string | null;
   onZombieFaceChange: (value: string | null) => void;
@@ -23,12 +25,13 @@ interface LandingProps {
 export function Landing({
   connected,
   onStart,
+  musicOn,
+  onToggleMusic,
   zombieFace,
   headAvatar,
   onZombieFaceChange,
   onHeadAvatarChange,
 }: LandingProps) {
-  const [musicOn, setMusicOn] = useState(false);
   const [showZombieModal, setShowZombieModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [faceError, setFaceError] = useState<string | null>(null);
@@ -80,7 +83,7 @@ export function Landing({
       {/* Music toggle — top right */}
       <div className="absolute top-4 right-4 z-30">
         <button
-          onClick={() => setMusicOn((v) => !v)}
+          onClick={onToggleMusic}
           className="w-10 h-10 rounded-full bg-[#086972]/80 border border-[#17b978]/40 hover:border-[#17b978] hover:bg-[#17b978]/20 transition-all flex items-center justify-center"
           title={musicOn ? "Turn music off" : "Turn music on"}
         >

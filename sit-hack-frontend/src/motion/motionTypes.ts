@@ -64,7 +64,6 @@ export interface PublicGameState {
   currentObstacle: Obstacle | null;
   score: number;
   countdownEndsAt: number | null;
-  swampActiveUntil: number | null;
   boostUntil: number | null;
 }
 

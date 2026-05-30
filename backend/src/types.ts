@@ -37,8 +37,6 @@ export interface GameSession {
   lastMotion: MotionPayload | null;
   lastSixtySevenCount: number;
   nextObstacleAt: number;
-  nextSwampAt: number;
-  swampActiveUntil: number | null;
   countdownEndsAt: number | null;
   lastGameUpdate: number;
   score: number;
@@ -62,6 +60,5 @@ export interface PublicGameState {
   currentObstacle: Obstacle | null;
   score: number;
   countdownEndsAt: number | null;
-  swampActiveUntil: number | null;
   boostUntil: number | null;
 }

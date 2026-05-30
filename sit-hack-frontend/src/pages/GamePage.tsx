@@ -17,7 +17,6 @@ import {
   GameOverOverlay,
   GetInFrameOverlay,
   PausedOverlay,
-  SwampAheadOverlay,
 } from "../components/Overlays";
 import { useZombieGame } from "../game/useZombieGame";
 import { POSE, type PoseLandmark } from "../motion/motionTypes";
@@ -53,6 +52,8 @@ export function GamePage() {
   // Player customizations chosen on the landing screen.
   const [zombieFace, setZombieFace] = useState<string | null>(null);
   const [headAvatar, setHeadAvatar] = useState<string | null>(null);
+  // Music preference, toggled from the landing screen.
+  const [musicOn, setMusicOn] = useState(true);
   const gameMusicRef = useRef<HTMLAudioElement | null>(null);
 
   // "67" instant-replay recording state. We capture the webcam canvas while a
@@ -72,16 +73,20 @@ export function GamePage() {
   );
 
   const handleStart = useCallback(() => {
-    unlockGameMusic(gameMusicRef);
+    if (musicOn) {
+      unlockGameMusic(gameMusicRef);
+    }
     setWantsCalibration(true);
     void startCamera();
-  }, [startCamera]);
+  }, [musicOn, startCamera]);
 
   const handleCalibrateNow = useCallback(() => {
-    unlockGameMusic(gameMusicRef);
+    if (musicOn) {
+      unlockGameMusic(gameMusicRef);
+    }
     setWantsCalibration(false);
     beginCalibrationFlow();
-  }, [beginCalibrationFlow]);
+  }, [musicOn, beginCalibrationFlow]);
 
   // Auto-begin calibration once the camera is up and the player is in frame.
   useEffect(() => {
@@ -144,26 +149,23 @@ export function GamePage() {
   }, [gs, faceSnapshot, canvasRef, landmarks]);
 
   useEffect(() => {
-    const music = gameMusicRef.current;
-    if (!music) {
-      return;
-    }
-
-    if (gs === "RUNNING") {
+    // Play only while running AND the music toggle is on.
+    if (gs === "RUNNING" && musicOn) {
+      const music = ensureGameMusic(gameMusicRef);
       void music.play().catch(() => {
         // If the browser blocks this, the start/calibrate click will retry unlocking it.
       });
       return;
     }
 
-    if (gs === "PAUSED" || gs === "MENU" || gs === "GAME_OVER") {
+    const music = gameMusicRef.current;
+    if (music) {
       music.pause();
+      if (gs === "MENU" || gs === "GAME_OVER") {
+        music.currentTime = 0;
+      }
     }
-
-    if (gs === "MENU" || gs === "GAME_OVER") {
-      music.currentTime = 0;
-    }
-  }, [gs]);
+  }, [gs, musicOn]);
 
   // Record a short clip of the player whenever a "67" obstacle is on screen.
   useEffect(() => {
@@ -203,10 +205,6 @@ export function GamePage() {
     gameState?.countdownEndsAt && gameState.countdownEndsAt > now
       ? Math.ceil((gameState.countdownEndsAt - now) / 1000)
       : 0;
-  const swampCountdown =
-    gameState?.swampActiveUntil && gameState.swampActiveUntil > now
-      ? Math.ceil((gameState.swampActiveUntil - now) / 1000)
-      : 0;
 
   const showLanding = gs === "MENU" && !wantsCalibration;
 
@@ -219,6 +217,8 @@ export function GamePage() {
         <Landing
           connected={connected}
           onStart={handleStart}
+          musicOn={musicOn}
+          onToggleMusic={() => setMusicOn((value) => !value)}
           zombieFace={zombieFace}
           headAvatar={headAvatar}
           onZombieFaceChange={setZombieFace}
@@ -289,10 +289,6 @@ export function GamePage() {
 
             {gs === "COUNTDOWN" ? <CountdownOverlay value={countdown} /> : null}
 
-            {swampCountdown > 0 ? (
-              <SwampAheadOverlay secondsRemaining={swampCountdown} />
-            ) : null}
-
             {gs === "PAUSED" ? <PausedOverlay onResume={resume} /> : null}
 
             {gs === "GAME_OVER" && gameState ? (
@@ -358,7 +354,7 @@ function captureUserFace(
   return output.toDataURL("image/png");
 }
 
-function unlockGameMusic(musicRef: MutableRefObject<HTMLAudioElement | null>) {
+function ensureGameMusic(musicRef: MutableRefObject<HTMLAudioElement | null>) {
   if (!musicRef.current) {
     const audio = new Audio(GAME_MUSIC_URL);
     audio.loop = true;
@@ -366,8 +362,11 @@ function unlockGameMusic(musicRef: MutableRefObject<HTMLAudioElement | null>) {
     audio.preload = "auto";
     musicRef.current = audio;
   }
+  return musicRef.current;
+}
 
-  const music = musicRef.current;
+function unlockGameMusic(musicRef: MutableRefObject<HTMLAudioElement | null>) {
+  const music = ensureGameMusic(musicRef);
   const previousVolume = music.volume;
   music.volume = 0;
   void music
