@@ -28,7 +28,6 @@ export interface GameSession {
   gameState: GameState;
   difficulty: Difficulty;
   speedMultiplier: number;
-  currentLevel: number;
   playerSpeed: number;
   runningIntensity: number;
   zombieDistance: number;
@@ -38,8 +37,9 @@ export interface GameSession {
   lastMotion: MotionPayload | null;
   lastSixtySevenCount: number;
   nextObstacleAt: number;
+  nextSwampAt: number;
+  swampActiveUntil: number | null;
   countdownEndsAt: number | null;
-  nextLevelStartsAt: number | null;
   lastGameUpdate: number;
   score: number;
   boostUntil: number | null;
@@ -54,7 +54,6 @@ export interface PublicGameState {
   gameState: GameState;
   difficulty: Difficulty;
   speedMultiplier: number;
-  currentLevel: number;
   playerSpeed: number;
   runningIntensity: number;
   zombieDistance: number;
@@ -63,6 +62,6 @@ export interface PublicGameState {
   currentObstacle: Obstacle | null;
   score: number;
   countdownEndsAt: number | null;
-  nextLevelStartsAt: number | null;
+  swampActiveUntil: number | null;
   boostUntil: number | null;
 }

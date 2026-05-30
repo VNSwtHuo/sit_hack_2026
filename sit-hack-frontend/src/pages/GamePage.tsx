@@ -1,5 +1,5 @@
 import { AnimatePresence } from "framer-motion";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import { Hud } from "../components/Hud";
 import { Landing } from "../components/Landing";
 import { ObstaclePrompt } from "../components/ObstaclePrompt";
@@ -10,13 +10,14 @@ import {
   CountdownOverlay,
   GameOverOverlay,
   GetInFrameOverlay,
-  LevelTransitionOverlay,
   PausedOverlay,
+  SwampAheadOverlay,
 } from "../components/Overlays";
 import { useZombieGame } from "../game/useZombieGame";
 import { POSE, type PoseLandmark } from "../motion/motionTypes";
 
 const CALIBRATION_CONFIDENCE_GATE = 0.8;
+const GAME_MUSIC_URL = "/circuit-bloodrun.mp3";
 
 export function GamePage() {
   const game = useZombieGame();
@@ -46,6 +47,7 @@ export function GamePage() {
   // Player customizations chosen on the landing screen.
   const [zombieFace, setZombieFace] = useState<string | null>(null);
   const [headAvatar, setHeadAvatar] = useState<string | null>(null);
+  const gameMusicRef = useRef<HTMLAudioElement | null>(null);
 
   const gs = gameState?.gameState ?? "MENU";
   const boostActive = Boolean(
@@ -53,11 +55,13 @@ export function GamePage() {
   );
 
   const handleStart = useCallback(() => {
+    unlockGameMusic(gameMusicRef);
     setWantsCalibration(true);
     void startCamera();
   }, [startCamera]);
 
   const handleCalibrateNow = useCallback(() => {
+    unlockGameMusic(gameMusicRef);
     setWantsCalibration(false);
     beginCalibrationFlow();
   }, [beginCalibrationFlow]);
@@ -116,13 +120,35 @@ export function GamePage() {
     }
   }, [gs, faceSnapshot, canvasRef, landmarks]);
 
+  useEffect(() => {
+    const music = gameMusicRef.current;
+    if (!music) {
+      return;
+    }
+
+    if (gs === "RUNNING") {
+      void music.play().catch(() => {
+        // If the browser blocks this, the start/calibrate click will retry unlocking it.
+      });
+      return;
+    }
+
+    if (gs === "PAUSED" || gs === "MENU" || gs === "GAME_OVER") {
+      music.pause();
+    }
+
+    if (gs === "MENU" || gs === "GAME_OVER") {
+      music.currentTime = 0;
+    }
+  }, [gs]);
+
   const countdown =
     gameState?.countdownEndsAt && gameState.countdownEndsAt > now
       ? Math.ceil((gameState.countdownEndsAt - now) / 1000)
       : 0;
-  const levelTransitionCountdown =
-    gameState?.nextLevelStartsAt && gameState.nextLevelStartsAt > now
-      ? Math.ceil((gameState.nextLevelStartsAt - now) / 1000)
+  const swampCountdown =
+    gameState?.swampActiveUntil && gameState.swampActiveUntil > now
+      ? Math.ceil((gameState.swampActiveUntil - now) / 1000)
       : 0;
 
   const showLanding = gs === "MENU" && !wantsCalibration;
@@ -206,11 +232,8 @@ export function GamePage() {
 
             {gs === "COUNTDOWN" ? <CountdownOverlay value={countdown} /> : null}
 
-            {levelTransitionCountdown > 0 && gameState ? (
-              <LevelTransitionOverlay
-                currentLevel={Math.max(1, gameState.currentLevel - 1)}
-                secondsRemaining={levelTransitionCountdown}
-              />
+            {swampCountdown > 0 ? (
+              <SwampAheadOverlay secondsRemaining={swampCountdown} />
             ) : null}
 
             {gs === "PAUSED" ? <PausedOverlay onResume={resume} /> : null}
@@ -220,6 +243,7 @@ export function GamePage() {
                 score={gameState.score}
                 survivalTime={gameState.survivalTime}
                 faceSnapshot={faceSnapshot}
+                sixtySevenReplayUrl={null}
                 onPlayAgain={handlePlayAgain}
                 onMenu={handleMenu}
               />
@@ -275,6 +299,30 @@ function captureUserFace(
   );
 
   return output.toDataURL("image/png");
+}
+
+function unlockGameMusic(musicRef: MutableRefObject<HTMLAudioElement | null>) {
+  if (!musicRef.current) {
+    const audio = new Audio(GAME_MUSIC_URL);
+    audio.loop = true;
+    audio.volume = 0.55;
+    audio.preload = "auto";
+    musicRef.current = audio;
+  }
+
+  const music = musicRef.current;
+  const previousVolume = music.volume;
+  music.volume = 0;
+  void music
+    .play()
+    .then(() => {
+      music.pause();
+      music.currentTime = 0;
+      music.volume = previousVolume;
+    })
+    .catch(() => {
+      music.volume = previousVolume;
+    });
 }
 
 function getExpandedBounds(

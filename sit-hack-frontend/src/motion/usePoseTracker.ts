@@ -61,12 +61,15 @@ const SCRIPT_URLS = [
 ];
 
 const PERSON_BACKGROUND_VIDEO_URL = "/r_video_background.mp4";
+const SWAMP_BACKGROUND_URL = "/swamp_background.png";
 
-export function usePoseTracker() {
+export function usePoseTracker(swampActive = false) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
+  const swampImageRef = useRef<HTMLImageElement | null>(null);
+  const swampActiveRef = useRef(swampActive);
   const cameraRef = useRef<MediaPipeCamera | null>(null);
   const poseRef = useRef<MediaPipePose | null>(null);
   const frameTimesRef = useRef<number[]>([]);
@@ -96,8 +99,11 @@ export function usePoseTracker() {
     context.save();
     context.clearRect(0, 0, canvas.width, canvas.height);
 
+    const swampImage = swampImageRef.current;
     const backgroundVideo = backgroundVideoRef.current;
-    if (
+    if (swampActiveRef.current && swampImage?.complete && swampImage.naturalWidth > 0) {
+      drawImageCover(context, swampImage, canvas.width, canvas.height);
+    } else if (
       backgroundVideo &&
       backgroundVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
     ) {
@@ -178,7 +184,15 @@ export function usePoseTracker() {
   }, []);
 
   useEffect(() => {
+    swampActiveRef.current = swampActive;
+  }, [swampActive]);
+
+  useEffect(() => {
     const backgroundVideo = document.createElement("video");
+    const swampImage = new Image();
+    swampImage.src = SWAMP_BACKGROUND_URL;
+    swampImageRef.current = swampImage;
+
     backgroundVideo.src = PERSON_BACKGROUND_VIDEO_URL;
     backgroundVideo.loop = true;
     backgroundVideo.muted = true;
@@ -192,6 +206,7 @@ export function usePoseTracker() {
     return () => {
       backgroundVideo.pause();
       backgroundVideoRef.current = null;
+      swampImageRef.current = null;
     };
   }, []);
 
@@ -309,6 +324,22 @@ function drawVideoCover(
   const dy = (height - drawHeight) / 2;
 
   context.drawImage(video, dx, dy, drawWidth, drawHeight);
+}
+
+function drawImageCover(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+) {
+  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const canvasRatio = width / height;
+  const drawWidth = imageRatio > canvasRatio ? height * imageRatio : width;
+  const drawHeight = imageRatio > canvasRatio ? height : width / imageRatio;
+  const dx = (width - drawWidth) / 2;
+  const dy = (height - drawHeight) / 2;
+
+  context.drawImage(image, dx, dy, drawWidth, drawHeight);
 }
 
 function loadMediaPipeScripts() {
