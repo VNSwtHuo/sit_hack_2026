@@ -7,7 +7,7 @@ const MAX_FACE_BYTES = 1024 * 1024; // 1 MB
 
 const HEAD_PRESETS: Array<{ path: string; label: string }> = [
   { path: "/balle.png", label: "Balle" },
-  { path: "/tong.png", label: "Tong" },
+  { path: "/tung.png", label: "Tung" },
   { path: "/tralala.png", label: "Tralala" },
 ];
 
@@ -134,7 +134,7 @@ export function Landing({
         <span className="rounded-full border border-lime-500/40 bg-lime-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-lime-300">
           SIT HACK 2026
         </span>
-        <h1 className="zombie-title whitespace-nowrap text-[100px] sm:text-[100px] md:text-[120px] lg:text-[145px]">
+        <h1 className="zombie-title text-[100px] sm:text-[100px] md:text-[120px] lg:text-[145px]">
           ZOMBIE RUN
         </h1>
       </motion.div>

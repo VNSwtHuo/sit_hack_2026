@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { motion } from "framer-motion";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 function Backdrop({ children }: { children: ReactNode }) {
   return (
@@ -18,7 +18,7 @@ export function CountdownOverlay({ value }: { value: number }) {
         animate={{ scale: 1, opacity: 1 }}
         className="text-[10rem] font-black leading-none text-lime-300 drop-shadow-[0_0_30px_rgba(132,204,22,0.8)]"
       >
-        {value > 0 ? value : 'RUN!'}
+        {value > 0 ? value : "RUN!"}
       </motion.span>
     </Backdrop>
   );
@@ -39,23 +39,31 @@ export function GetInFrameOverlay({
     <Backdrop>
       <div className="flex max-w-md flex-col items-center gap-4">
         <span className="text-5xl">📸</span>
-        <h2 className="text-2xl font-black uppercase tracking-widest text-neutral-100">Get in frame</h2>
+        <h2 className="text-2xl font-black uppercase tracking-widest text-neutral-100">
+          Get in frame
+        </h2>
         {error ? (
           <p className="text-sm text-red-400">{error}</p>
         ) : (
           <p className="text-sm text-neutral-400">
-            Step back so your <span className="text-lime-300">whole body</span> is visible, then hold still for a moment.
+            Step back so your <span className="text-[#0fa067]">whole body</span>{" "}
+            is visible, then hold still for a moment.
           </p>
         )}
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-neutral-500">
-          <span className={`h-2 w-2 rounded-full ${cameraOn ? 'bg-lime-400' : 'bg-yellow-400 animate-pulse'}`} />
-          {cameraOn ? `Pose confidence ${(confidence * 100).toFixed(0)}%` : 'Starting camera…'}
+          <span
+            className={`h-2 w-2 rounded-full ${cameraOn ? "bg-[#0fa067]" : "bg-yellow-400 animate-pulse"}`}
+          />
+          {cameraOn
+            ? `Pose confidence ${(confidence * 100).toFixed(0)}%`
+            : "Starting camera…"}
         </div>
         <button
           type="button"
           onClick={onCalibrate}
           disabled={!cameraOn}
-          className="rounded-xl bg-lime-400 px-6 py-3 font-bold uppercase tracking-widest text-neutral-950 transition hover:bg-lime-300 disabled:opacity-40"
+          className="rounded-xl bg-[#98d47b] px-6 py-3 font-bold uppercase tracking-widest text-neutral-950 transition hover:bg-[#a8e48b]
+  disabled:opacity-40"
         >
           Calibrate
         </button>
@@ -64,20 +72,32 @@ export function GetInFrameOverlay({
   );
 }
 
-export function CalibratingOverlay({ progress, samples }: { progress: number; samples: number }) {
+export function CalibratingOverlay({
+  progress,
+  samples,
+}: {
+  progress: number;
+  samples: number;
+}) {
   return (
     <Backdrop>
       <div className="flex w-full max-w-sm flex-col items-center gap-4">
         <span className="text-5xl">🤖</span>
-        <h2 className="text-2xl font-black uppercase tracking-widest text-lime-300">Calibrating</h2>
-        <p className="text-sm text-neutral-400">Hold your running stance. Reading your body…</p>
+        <h2 className="text-2xl font-black uppercase tracking-widest text-lime-300">
+          Calibrating
+        </h2>
+        <p className="text-sm text-neutral-400">
+          Hold your running stance. Reading your body…
+        </p>
         <div className="h-3 w-full overflow-hidden rounded-full bg-neutral-800">
           <div
             className="h-full rounded-full bg-lime-400 transition-[width] duration-100"
             style={{ width: `${Math.round(progress * 100)}%` }}
           />
         </div>
-        <span className="font-mono text-xs text-neutral-500">{samples} samples captured</span>
+        <span className="font-mono text-xs text-neutral-500">
+          {samples} samples captured
+        </span>
       </div>
     </Backdrop>
   );
@@ -87,7 +107,9 @@ export function PausedOverlay({ onResume }: { onResume: () => void }) {
   return (
     <Backdrop>
       <div className="flex flex-col items-center gap-5">
-        <h2 className="text-4xl font-black uppercase tracking-widest text-neutral-100">Paused</h2>
+        <h2 className="text-4xl font-black uppercase tracking-widest text-neutral-100">
+          Paused
+        </h2>
         <button
           type="button"
           onClick={onResume}
@@ -113,7 +135,9 @@ export function SwampAheadOverlay({
       className="pointer-events-none absolute left-1/2 top-4 z-40 flex w-[min(92vw,44rem)] -translate-x-1/2 items-center justify-between gap-4 rounded-xl border-2 border-red-500 bg-neutral-950/85 px-5 py-3 text-left shadow-[0_0_34px_rgba(239,68,68,0.35)] backdrop-blur"
     >
       <div>
-        <div className="text-[10px] font-black uppercase tracking-[0.35em] text-lime-300">Environmental hazard</div>
+        <div className="text-[10px] font-black uppercase tracking-[0.35em] text-lime-300">
+          Environmental hazard
+        </div>
         <div className="text-lg font-black uppercase tracking-widest text-neutral-100 sm:text-2xl">
           Swamp ahead
         </div>
@@ -156,15 +180,21 @@ export function GameOverOverlay({
         ) : (
           <span className="text-7xl">💀</span>
         )}
-        <h2 className="glitch text-5xl font-black uppercase tracking-widest text-red-500" data-text="CAUGHT!">
+        <h2
+          className="glitch text-5xl font-black uppercase tracking-widest text-red-500"
+          data-text="CAUGHT!"
+        >
           CAUGHT!
         </h2>
         <p className="max-w-sm text-sm text-neutral-300">
-          You got eaten alive by zombie... honestly, five-star meal presentation.
+          You got eaten alive by zombie... honestly, five-star meal
+          presentation.
         </p>
         {sixtySevenReplayUrl ? (
           <div className="w-full rounded-xl border border-pink-400/50 bg-neutral-950/80 p-4 text-left">
-            <div className="mb-2 text-xs font-black uppercase tracking-widest text-pink-300">67 instant replay</div>
+            <div className="mb-2 text-xs font-black uppercase tracking-widest text-pink-300">
+              67 instant replay
+            </div>
             <video
               src={sixtySevenReplayUrl}
               className="aspect-video max-h-[46vh] w-full rounded-lg bg-black object-cover"
@@ -201,19 +231,42 @@ export function GameOverOverlay({
   );
 }
 
-const COMBO_MESSAGES: Array<{ combo: number; message: string; subtext: string }> = [
-  { combo: 10, message: 'THE ZOMBIES ARE FILING A COMPLAINT', subtext: 'Unfair movement detected' },
-  { combo: 7, message: 'BRAINROT MODE', subtext: 'Absolutely unreasonable behavior' },
-  { combo: 5, message: 'ABSOLUTE CINEMA', subtext: 'The horde is watching in HD' },
-  { combo: 3, message: 'COOKING', subtext: 'Keep the streak alive' },
+const COMBO_MESSAGES: Array<{
+  combo: number;
+  message: string;
+  subtext: string;
+}> = [
+  {
+    combo: 10,
+    message: "THE ZOMBIES ARE FILING A COMPLAINT",
+    subtext: "Unfair movement detected",
+  },
+  {
+    combo: 7,
+    message: "BRAINROT MODE",
+    subtext: "Absolutely unreasonable behavior",
+  },
+  {
+    combo: 5,
+    message: "ABSOLUTE CINEMA",
+    subtext: "The horde is watching in HD",
+  },
+  { combo: 3, message: "COOKING", subtext: "Keep the streak alive" },
 ];
 
 export function ComboAnnouncer({ comboCount }: { comboCount: number }) {
-  const [announcement, setAnnouncement] = useState<{ combo: number; message: string; subtext: string } | null>(null);
+  const [announcement, setAnnouncement] = useState<{
+    combo: number;
+    message: string;
+    subtext: string;
+  } | null>(null);
   const lastAnnouncedComboRef = useRef(0);
 
   useEffect(() => {
-    const nextAnnouncement = COMBO_MESSAGES.find(({ combo }) => comboCount >= combo && lastAnnouncedComboRef.current < combo);
+    const nextAnnouncement = COMBO_MESSAGES.find(
+      ({ combo }) =>
+        comboCount >= combo && lastAnnouncedComboRef.current < combo,
+    );
     if (!nextAnnouncement) {
       if (comboCount === 0) {
         lastAnnouncedComboRef.current = 0;
@@ -237,12 +290,18 @@ export function ComboAnnouncer({ comboCount }: { comboCount: number }) {
       initial={{ scale: 0.65, opacity: 0, y: 24 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ scale: 1.2, opacity: 0, y: -16 }}
-      transition={{ type: 'spring', stiffness: 340, damping: 20 }}
+      transition={{ type: "spring", stiffness: 340, damping: 20 }}
       className="pointer-events-none absolute left-1/2 top-[18%] z-30 w-[min(92vw,34rem)] -translate-x-1/2 rounded-2xl border-4 border-lime-300 bg-neutral-950/80 px-6 py-4 text-center shadow-[0_0_45px_rgba(132,204,22,0.45)] backdrop-blur"
     >
-      <div className="text-xs font-black uppercase tracking-[0.35em] text-lime-300">Combo x{comboCount}</div>
-      <div className="mt-1 text-2xl font-black uppercase tracking-widest text-neutral-100 sm:text-4xl">{announcement.message}</div>
-      <div className="mt-1 text-xs uppercase tracking-widest text-neutral-400">{announcement.subtext}</div>
+      <div className="text-xs font-black uppercase tracking-[0.35em] text-lime-300">
+        Combo x{comboCount}
+      </div>
+      <div className="mt-1 text-2xl font-black uppercase tracking-widest text-neutral-100 sm:text-4xl">
+        {announcement.message}
+      </div>
+      <div className="mt-1 text-xs uppercase tracking-widest text-neutral-400">
+        {announcement.subtext}
+      </div>
     </motion.div>
   );
 }
@@ -250,8 +309,12 @@ export function ComboAnnouncer({ comboCount }: { comboCount: number }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900/70 px-4 py-3">
-      <div className="text-2xl font-black tabular-nums text-neutral-100">{value}</div>
-      <div className="text-xs uppercase tracking-widest text-neutral-500">{label}</div>
+      <div className="text-2xl font-black tabular-nums text-neutral-100">
+        {value}
+      </div>
+      <div className="text-xs uppercase tracking-widest text-neutral-500">
+        {label}
+      </div>
     </div>
   );
 }
@@ -265,7 +328,9 @@ export function BoostFlash({ message }: { message: string }) {
       className="pointer-events-none absolute left-1/2 top-1/3 z-30 -translate-x-1/2 rounded-2xl border-4 border-pink-400 bg-pink-500/30 px-8 py-4 text-center backdrop-blur"
     >
       <div className="text-4xl">🧠🔥</div>
-      <div className="text-2xl font-black uppercase tracking-widest text-pink-200">{message}</div>
+      <div className="text-2xl font-black uppercase tracking-widest text-pink-200">
+        {message}
+      </div>
     </motion.div>
   );
 }
