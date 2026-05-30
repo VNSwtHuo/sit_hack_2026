@@ -1,4 +1,4 @@
-import { Footprints, Pause, Play, Zap } from 'lucide-react';
+import { Pause, Play, Zap } from 'lucide-react';
 import type { PublicGameState } from '../motion/motionTypes';
 
 interface HudProps {
@@ -53,13 +53,6 @@ export function Hud({ state, running, paused, onPauseToggle }: HudProps) {
           value={distancePct}
           color={distanceColor}
           valueLabel={`${distancePct.toFixed(0)}m`}
-        />
-        <Meter
-          label="Stamina"
-          icon={<Footprints size={14} />}
-          value={state.stamina}
-          color="#38bdf8"
-          valueLabel={`${Math.round(state.stamina)}`}
         />
         {running ? (
           <p className="text-center text-xs uppercase tracking-[0.3em] text-neutral-500">

@@ -1,5 +1,13 @@
 import { AnimatePresence } from "framer-motion";
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
 import { Hud } from "../components/Hud";
 import { Landing } from "../components/Landing";
 import { ObstaclePrompt } from "../components/ObstaclePrompt";
@@ -7,6 +15,7 @@ import { ZombieLayer } from "../components/ZombieLayer";
 import {
   BoostFlash,
   CalibratingOverlay,
+  ComboAnnouncer,
   CountdownOverlay,
   GameOverOverlay,
   GetInFrameOverlay,
@@ -15,7 +24,9 @@ import {
 import { useZombieGame } from "../game/useZombieGame";
 import { POSE, type PoseLandmark } from "../motion/motionTypes";
 
-const CALIBRATION_CONFIDENCE_GATE = 0.8;
+const CALIBRATION_CONFIDENCE_GATE = 1.8;
+const SIXTY_SEVEN_REPLAY_MAX_MS = 5200;
+const GAME_MUSIC_URL = "/circuit-bloodrun.mp3";
 
 export function GamePage() {
   const game = useZombieGame();
@@ -42,6 +53,15 @@ export function GamePage() {
 
   const [wantsCalibration, setWantsCalibration] = useState(false);
   const [faceSnapshot, setFaceSnapshot] = useState<string | null>(null);
+  const [sixtySevenReplayUrl, setSixtySevenReplayUrl] = useState<string | null>(
+    null,
+  );
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const replayChunksRef = useRef<Blob[]>([]);
+  const recordingObstacleIdRef = useRef<string | null>(null);
+  const replayStopTimerRef = useRef<number | null>(null);
+  const replayUrlRef = useRef<string | null>(null);
+  const gameMusicRef = useRef<HTMLAudioElement | null>(null);
 
   const gs = gameState?.gameState ?? "MENU";
   const boostActive = Boolean(
@@ -49,6 +69,9 @@ export function GamePage() {
   );
 
   const handleStart = useCallback(() => {
+    if (!gameMusicRef.current) {
+      gameMusicRef.current = createGameMusic();
+    }
     setWantsCalibration(true);
     void startCamera();
   }, [startCamera]);
@@ -90,12 +113,14 @@ export function GamePage() {
   // Replay reuses the existing calibration profile and jumps straight to the countdown.
   const handlePlayAgain = useCallback(() => {
     setFaceSnapshot(null);
+    clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
     restart();
     confirmCalibration();
   }, [restart, confirmCalibration]);
 
   const handleMenu = useCallback(() => {
     setFaceSnapshot(null);
+    clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
     restart();
     resetCalibration();
     setWantsCalibration(false);
@@ -111,6 +136,58 @@ export function GamePage() {
       setFaceSnapshot(snapshot);
     }
   }, [gs, faceSnapshot, canvasRef, landmarks]);
+
+  useEffect(() => {
+    const music = gameMusicRef.current;
+    if (!music) {
+      return;
+    }
+
+    if (gs === "RUNNING") {
+      void music.play().catch(() => {
+        // Browsers can still block delayed playback; the next user action can retry.
+      });
+      return;
+    }
+
+    music.pause();
+    if (gs === "MENU" || gs === "GAME_OVER") {
+      music.currentTime = 0;
+    }
+  }, [gs]);
+
+  useEffect(() => {
+    const obstacle = gameState?.currentObstacle;
+    const isSixtySevenActive =
+      gs === "RUNNING" && obstacle?.type === "SIX_SEVEN";
+
+    if (isSixtySevenActive && obstacle.id !== recordingObstacleIdRef.current) {
+      stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+      startSixtySevenReplayRecording(
+        canvasRef.current,
+        obstacle.id,
+        recorderRef,
+        replayChunksRef,
+        recordingObstacleIdRef,
+        replayStopTimerRef,
+        replayUrlRef,
+        setSixtySevenReplayUrl,
+      );
+      return;
+    }
+
+    if (!isSixtySevenActive && recorderRef.current) {
+      stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+    }
+  }, [gs, gameState?.currentObstacle, canvasRef]);
+
+  useEffect(() => {
+    return () => {
+      stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+      clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
+      gameMusicRef.current?.pause();
+    };
+  }, []);
 
   const countdown =
     gameState?.countdownEndsAt && gameState.countdownEndsAt > now
@@ -170,6 +247,12 @@ export function GamePage() {
               ) : null}
             </AnimatePresence>
 
+            <AnimatePresence>
+              {(gs === "RUNNING" || gs === "PAUSED") && gameState ? (
+                <ComboAnnouncer comboCount={gameState.comboCount} />
+              ) : null}
+            </AnimatePresence>
+
             {/* State overlays */}
             {gs === "MENU" && wantsCalibration ? (
               <GetInFrameOverlay
@@ -196,6 +279,7 @@ export function GamePage() {
                 score={gameState.score}
                 survivalTime={gameState.survivalTime}
                 faceSnapshot={faceSnapshot}
+                sixtySevenReplayUrl={sixtySevenReplayUrl}
                 onPlayAgain={handlePlayAgain}
                 onMenu={handleMenu}
               />
@@ -204,6 +288,108 @@ export function GamePage() {
         </div>
       )}
     </main>
+  );
+}
+
+function createGameMusic() {
+  const audio = new Audio(GAME_MUSIC_URL);
+  audio.loop = true;
+  audio.volume = 0.55;
+  audio.preload = "auto";
+  return audio;
+}
+
+function startSixtySevenReplayRecording(
+  canvas: HTMLCanvasElement | null,
+  obstacleId: string,
+  recorderRef: MutableRefObject<MediaRecorder | null>,
+  chunksRef: MutableRefObject<Blob[]>,
+  obstacleIdRef: MutableRefObject<string | null>,
+  stopTimerRef: MutableRefObject<number | null>,
+  replayUrlRef: MutableRefObject<string | null>,
+  setReplayUrl: Dispatch<SetStateAction<string | null>>,
+) {
+  if (
+    !canvas ||
+    typeof MediaRecorder === "undefined" ||
+    !canvas.captureStream
+  ) {
+    return;
+  }
+
+  const stream = canvas.captureStream(24);
+  const mimeType = getSupportedReplayMimeType();
+  const recorder = new MediaRecorder(
+    stream,
+    mimeType ? { mimeType } : undefined,
+  );
+  chunksRef.current = [];
+  obstacleIdRef.current = obstacleId;
+
+  recorder.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      chunksRef.current.push(event.data);
+    }
+  };
+
+  recorder.onstop = () => {
+    stream.getTracks().forEach((track) => track.stop());
+    recorderRef.current = null;
+    obstacleIdRef.current = null;
+
+    if (chunksRef.current.length === 0) {
+      return;
+    }
+
+    clearReplayUrl(setReplayUrl, replayUrlRef);
+    const replayBlob = new Blob(chunksRef.current, {
+      type: recorder.mimeType || "video/webm",
+    });
+    const nextUrl = URL.createObjectURL(replayBlob);
+    replayUrlRef.current = nextUrl;
+    setReplayUrl(nextUrl);
+  };
+
+  recorderRef.current = recorder;
+  recorder.start();
+  stopTimerRef.current = window.setTimeout(() => {
+    stopSixtySevenReplayRecording(recorderRef, stopTimerRef);
+  }, SIXTY_SEVEN_REPLAY_MAX_MS);
+}
+
+function stopSixtySevenReplayRecording(
+  recorderRef: MutableRefObject<MediaRecorder | null>,
+  stopTimerRef: MutableRefObject<number | null>,
+) {
+  if (stopTimerRef.current) {
+    window.clearTimeout(stopTimerRef.current);
+    stopTimerRef.current = null;
+  }
+
+  if (recorderRef.current?.state === "recording") {
+    recorderRef.current.stop();
+  }
+}
+
+function clearReplayUrl(
+  setReplayUrl: Dispatch<SetStateAction<string | null>>,
+  replayUrlRef: MutableRefObject<string | null>,
+) {
+  if (replayUrlRef.current) {
+    URL.revokeObjectURL(replayUrlRef.current);
+    replayUrlRef.current = null;
+  }
+  setReplayUrl(null);
+}
+
+function getSupportedReplayMimeType() {
+  const candidates = [
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm",
+  ];
+  return candidates.find((candidate) =>
+    MediaRecorder.isTypeSupported(candidate),
   );
 }
 

@@ -23,7 +23,6 @@ export function createSession(playerName = 'Runner'): GameSession {
     playerSpeed: 0,
     runningIntensity: 0,
     zombieDistance: config.startingDistance,
-    stamina: 100,
     comboCount: 0,
     survivalTime: 0,
     currentObstacle: null,
@@ -49,7 +48,6 @@ export function toPublicGameState(session: GameSession): PublicGameState {
     playerSpeed: session.playerSpeed,
     runningIntensity: session.runningIntensity,
     zombieDistance: session.zombieDistance,
-    stamina: Math.round(session.stamina),
     comboCount: session.comboCount,
     survivalTime: session.survivalTime,
     currentObstacle: session.currentObstacle,
@@ -70,7 +68,6 @@ export function startCalibration(session: GameSession) {
   session.playerSpeed = 0;
   session.runningIntensity = 0;
   session.zombieDistance = config.startingDistance;
-  session.stamina = 100;
   session.score = 0;
   session.countdownEndsAt = null;
   session.boostUntil = null;
@@ -226,13 +223,7 @@ export function tickSession(session: GameSession, now: number) {
   session.speedMultiplier = getSpeedMultiplier(nextSurvivalTime);
   const config = getDynamicDifficultyConfig(nextSurvivalTime);
   const motionFresh = session.lastMotion ? now - session.lastMotion.timestamp < MOTION_STALE_MS : false;
-  const rawSpeed = motionFresh ? session.playerSpeed : 0;
-  const staminaDrain = Math.max(0, rawSpeed - 0.28) * 20 * deltaSeconds;
-  const staminaRecovery = rawSpeed < 0.22 ? 13 * deltaSeconds : 3 * deltaSeconds;
-
-  session.stamina = clamp(session.stamina - staminaDrain + staminaRecovery, 0, 100);
-  const staminaMultiplier = session.stamina < 25 ? 0.55 + session.stamina / 55 : 1;
-  const effectiveSpeed = rawSpeed * staminaMultiplier;
+  const effectiveSpeed = motionFresh ? session.playerSpeed : 0;
   const boostActive = Boolean(session.boostUntil && now < session.boostUntil);
 
   session.survivalTime = nextSurvivalTime;

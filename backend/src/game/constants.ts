@@ -24,8 +24,8 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
   EASY: {
     chaseRate: 0.16,
     recoveryRate: 0.28,
-    obstacleMinMs: 8500,
-    obstacleMaxMs: 12000,
+    obstacleMinMs: 4500,
+    obstacleMaxMs: 7000,
     obstacleDurationMs: 3400,
     missPenalty: 7,
     comboBonus: 12,
@@ -69,8 +69,8 @@ export function getDynamicDifficultyConfig(survivalTimeSeconds: number): Difficu
   return {
     ...base,
     chaseRate: base.chaseRate * speedMultiplier,
-    obstacleMinMs: Math.max(2200, Math.round(base.obstacleMinMs / speedMultiplier)),
-    obstacleMaxMs: Math.max(3600, Math.round(base.obstacleMaxMs / speedMultiplier)),
+    obstacleMinMs: Math.max(1800, Math.round(base.obstacleMinMs / speedMultiplier)),
+    obstacleMaxMs: Math.max(2800, Math.round(base.obstacleMaxMs / speedMultiplier)),
     obstacleDurationMs: Math.max(1800, Math.round(base.obstacleDurationMs / Math.sqrt(speedMultiplier))),
     missPenalty: Math.round(base.missPenalty * speedMultiplier),
   };
