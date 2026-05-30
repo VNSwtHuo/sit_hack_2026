@@ -8,7 +8,13 @@ import {
   updateCalibration,
   type CalibrationSample,
 } from "../motion/calibration";
-import type { CalibrationState, MultiplayerPlayer } from "../motion/motionTypes";
+import type {
+  CalibrationState,
+  MultiplayerPlayer,
+  Obstacle,
+} from "../motion/motionTypes";
+import { ZombieLayer } from "../components/ZombieLayer";
+import { ObstaclePrompt } from "../components/ObstaclePrompt";
 import { useMotionDetection } from "../motion/useMotionDetection";
 import { useMultiplayerRoom } from "../motion/useMultiplayerRoom";
 import { usePoseTracker } from "../motion/usePoseTracker";
@@ -50,10 +56,17 @@ export function MultiplayerPage() {
   const [now, setNow] = useState(() => Date.now());
   const calibrationSamplesRef = useRef<CalibrationSample[]>([]);
   const lastMotionSentRef = useRef(0);
-  const motion = useMotionDetection(landmarks, calibration.profile, null);
 
   const self = room?.players.find((player) => player.socketId === socketId);
   const opponent = room?.players.find((player) => player.socketId !== socketId);
+  const activeObstacle = self?.obstacleResolved
+    ? null
+    : room?.currentObstacle ?? null;
+  const motion = useMotionDetection(
+    landmarks,
+    calibration.profile,
+    activeObstacle,
+  );
   const isHost = Boolean(self?.isHost);
   const allPlayersReady =
     room?.players.length === 2 && room.players.every((player) => player.ready);
@@ -61,6 +74,8 @@ export function MultiplayerPage() {
     room?.endsAt && room.phase === "RUNNING"
       ? Math.max(0, Math.ceil((room.endsAt - now) / 1000))
       : room?.durationSeconds ?? durationSeconds;
+  const showGameView =
+    room?.phase === "RUNNING" || (room?.phase === "FINISHED" && room.startedAt);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 100);
@@ -128,79 +143,101 @@ export function MultiplayerPage() {
       <div className="relative min-h-screen overflow-hidden">
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 h-full w-full -scale-x-100 object-cover opacity-45"
+          className={`absolute inset-0 h-full w-full -scale-x-100 object-cover ${
+            showGameView ? "opacity-100" : "opacity-45"
+          }`}
         />
-        <div className="absolute inset-0 bg-neutral-950/75" />
+        {showGameView && room ? (
+          <MultiplayerGameView
+            self={self}
+            opponent={opponent}
+            gap={room.gap}
+            maxGap={room.maxGap}
+            remainingSeconds={remainingSeconds}
+            selfSpeed={motion.playerSpeed}
+            phase={room.phase}
+            winnerSocketId={room.winnerSocketId}
+            winnerRole={room.winnerRole}
+            finishReason={room.finishReason}
+            obstacle={activeObstacle}
+            now={now}
+            onLeave={leaveRoom}
+          />
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-neutral-950/75" />
 
-        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5">
-          <header className="flex items-center justify-between gap-3">
-            <Link
-              to="/"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#17b978]/40 bg-[#083339]/80 text-[#a7ff83] transition hover:border-[#17b978]"
-              title="Back"
-            >
-              <ArrowLeft size={18} />
-            </Link>
-            <div className="text-right">
-              <h1 className="font-zombie text-4xl text-[#a7ff83]">
-                Two Player
-              </h1>
-              <p className="text-xs uppercase tracking-widest text-neutral-500">
-                {connected ? "LAN lobby online" : "Connecting"}
-              </p>
+            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5">
+              <header className="flex items-center justify-between gap-3">
+                <Link
+                  to="/"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#17b978]/40 bg-[#083339]/80 text-[#a7ff83] transition hover:border-[#17b978]"
+                  title="Back"
+                >
+                  <ArrowLeft size={18} />
+                </Link>
+                <div className="text-right">
+                  <h1 className="font-zombie text-4xl text-[#a7ff83]">
+                    Two Player
+                  </h1>
+                  <p className="text-xs uppercase tracking-widest text-neutral-500">
+                    {connected ? "LAN lobby online" : "Connecting"}
+                  </p>
+                </div>
+              </header>
+
+              {!room ? (
+                <SetupPanel
+                  playerName={playerName}
+                  joinCode={joinCode}
+                  durationSeconds={durationSeconds}
+                  connected={connected}
+                  error={error}
+                  onPlayerNameChange={setPlayerName}
+                  onJoinCodeChange={setJoinCode}
+                  onDurationChange={handleDurationChange}
+                  onCreate={handleCreateRoom}
+                  onJoin={handleJoinRoom}
+                />
+              ) : (
+                <div className="grid flex-1 items-stretch gap-4 py-6 lg:grid-cols-[360px_1fr]">
+                  <LobbyPanel
+                    roomCode={room.code}
+                    players={room.players}
+                    self={self}
+                    durationSeconds={room.durationSeconds}
+                    isHost={isHost}
+                    allPlayersReady={Boolean(allPlayersReady)}
+                    cameraOn={cameraOn}
+                    cameraError={cameraError}
+                    confidence={confidence}
+                    calibration={calibration}
+                    error={error}
+                    onDurationChange={handleDurationChange}
+                    onCalibrate={startCameraAndCalibration}
+                    onStart={startRoom}
+                    onLeave={leaveRoom}
+                  />
+
+                  <ArenaPanel
+                    phase={room.phase}
+                    self={self}
+                    opponent={opponent}
+                    gap={room.gap}
+                    maxGap={room.maxGap}
+                    remainingSeconds={remainingSeconds}
+                    revealEndsAt={room.roleRevealEndsAt}
+                    winnerSocketId={room.winnerSocketId}
+                    winnerRole={room.winnerRole}
+                    finishReason={room.finishReason}
+                    now={now}
+                    selfSpeed={motion.playerSpeed}
+                  />
+                </div>
+              )}
             </div>
-          </header>
-
-          {!room ? (
-            <SetupPanel
-              playerName={playerName}
-              joinCode={joinCode}
-              durationSeconds={durationSeconds}
-              connected={connected}
-              error={error}
-              onPlayerNameChange={setPlayerName}
-              onJoinCodeChange={setJoinCode}
-              onDurationChange={handleDurationChange}
-              onCreate={handleCreateRoom}
-              onJoin={handleJoinRoom}
-            />
-          ) : (
-            <div className="grid flex-1 items-stretch gap-4 py-6 lg:grid-cols-[360px_1fr]">
-              <LobbyPanel
-                roomCode={room.code}
-                players={room.players}
-                self={self}
-                durationSeconds={room.durationSeconds}
-                isHost={isHost}
-                allPlayersReady={Boolean(allPlayersReady)}
-                cameraOn={cameraOn}
-                cameraError={cameraError}
-                confidence={confidence}
-                calibration={calibration}
-                error={error}
-                onDurationChange={handleDurationChange}
-                onCalibrate={startCameraAndCalibration}
-                onStart={startRoom}
-                onLeave={leaveRoom}
-              />
-
-              <ArenaPanel
-                phase={room.phase}
-                self={self}
-                opponent={opponent}
-                gap={room.gap}
-                maxGap={room.maxGap}
-                remainingSeconds={remainingSeconds}
-                revealEndsAt={room.roleRevealEndsAt}
-                winnerSocketId={room.winnerSocketId}
-                winnerRole={room.winnerRole}
-                finishReason={room.finishReason}
-                now={now}
-                selfSpeed={motion.playerSpeed}
-              />
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </main>
   );
@@ -585,6 +622,146 @@ function ArenaPanel({
         </p>
       </div>
     </section>
+  );
+}
+
+function MultiplayerGameView({
+  self,
+  opponent,
+  gap,
+  maxGap,
+  remainingSeconds,
+  selfSpeed,
+  phase,
+  winnerSocketId,
+  winnerRole,
+  finishReason,
+  obstacle,
+  now,
+  onLeave,
+}: {
+  self: MultiplayerPlayer | undefined;
+  opponent: MultiplayerPlayer | undefined;
+  gap: number;
+  maxGap: number;
+  remainingSeconds: number;
+  selfSpeed: number;
+  phase: string;
+  winnerSocketId: string | null;
+  winnerRole: string | null;
+  finishReason: string | null;
+  obstacle: Obstacle | null;
+  now: number;
+  onLeave: () => void;
+}) {
+  const distancePct = Math.max(0, Math.min(100, (gap / maxGap) * 100));
+  const youWon = self?.socketId === winnerSocketId;
+
+  return (
+    <div className="absolute inset-0 z-10 overflow-hidden text-neutral-100">
+      <ZombieLayer zombieDistance={distancePct} boostActive={false} />
+
+      {phase === "RUNNING" ? (
+        <div className="pointer-events-none absolute inset-x-0 top-1/4 z-10 flex justify-center">
+          <ObstaclePrompt obstacle={obstacle} now={now} />
+        </div>
+      ) : null}
+
+      <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
+        <div className="rounded-xl bg-neutral-950/70 px-4 py-3 backdrop-blur">
+          <div className="text-[0.65rem] font-black uppercase tracking-widest text-neutral-500">
+            Your role
+          </div>
+          <div className="mt-1 text-3xl font-black uppercase text-[#a7ff83]">
+            {self?.role ?? "-"}
+          </div>
+          <div className="mt-1 text-xs uppercase tracking-widest text-neutral-400">
+            vs {opponent?.name ?? "opponent"} · {opponent?.role ?? "-"}
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <div className="rounded-xl bg-neutral-950/70 px-4 py-3 text-right backdrop-blur">
+            <div className="text-[0.65rem] font-black uppercase tracking-widest text-neutral-500">
+              Timer
+            </div>
+            <div className="mt-1 font-mono text-4xl font-black text-orange-200">
+              {remainingSeconds}s
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onLeave}
+            className="grid h-11 w-11 place-items-center rounded-xl bg-neutral-950/70 text-neutral-200 backdrop-blur hover:bg-neutral-800"
+            title="Leave"
+          >
+            <LogOut size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 p-4">
+        <div className="grid gap-2 rounded-xl bg-neutral-950/70 p-4 backdrop-blur">
+          <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-widest text-neutral-400">
+            <span>Zombie</span>
+            <span className="text-neutral-100">
+              Distance {Math.round(gap)}m
+            </span>
+            <span>Survivor</span>
+          </div>
+          <div className="h-4 overflow-hidden rounded-full bg-red-500/30">
+            <div
+              className="h-full rounded-full bg-[#17b978] transition-[width] duration-200"
+              style={{ width: `${distancePct}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs uppercase tracking-widest text-neutral-500">
+            <span>Your speed {selfSpeed.toFixed(2)}</span>
+            <span>Rival speed {(opponent?.speed ?? 0).toFixed(2)}</span>
+          </div>
+          {self?.obstaclePenaltyUntil && self.obstaclePenaltyUntil > now ? (
+            <div className="rounded-md border border-red-400/50 bg-red-500/20 px-3 py-2 text-center text-xs font-black uppercase tracking-widest text-red-200">
+              Obstacle miss penalty
+            </div>
+          ) : null}
+        </div>
+        <p className="text-center text-xs uppercase tracking-[0.3em] text-neutral-500">
+          Keep running in place
+        </p>
+      </div>
+
+      {phase === "FINISHED" ? (
+        <div className="absolute inset-0 z-20 grid place-items-center bg-neutral-950/75 px-4 text-center backdrop-blur-sm">
+          <div className="max-w-lg">
+            <div className="font-zombie text-7xl text-[#a7ff83]">
+              {youWon ? "YOU WIN" : "YOU LOSE"}
+            </div>
+            <p className="mt-3 text-sm uppercase tracking-widest text-neutral-300">
+              {finishReason === "caught"
+                ? "The zombie caught the survivor"
+                : finishReason === "timeout"
+                  ? "The survivor lasted the timer"
+                  : "Room ended"}
+            </p>
+            <div className="mt-5 inline-flex rounded-lg border border-neutral-700 bg-neutral-900/90 px-4 py-3">
+              <span className="text-xs font-black uppercase tracking-widest text-neutral-500">
+                Winner&nbsp;
+              </span>
+              <span className="font-black uppercase text-orange-200">
+                {winnerRole ?? "-"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onLeave}
+              className="mt-6 block w-full rounded-lg bg-[#17b978] px-5 py-3 font-black uppercase tracking-widest text-[#04201f] transition hover:bg-[#a7ff83]"
+            >
+              Back to lobby
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

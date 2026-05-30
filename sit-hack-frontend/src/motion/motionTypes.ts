@@ -77,6 +77,10 @@ export interface MultiplayerPlayer {
   ready: boolean;
   role: MultiplayerRole | null;
   speed: number;
+  sixtySevenCount: number;
+  obstacleResolved: boolean;
+  obstaclePenaltyUntil: number | null;
+  lastSixtySevenCount: number;
   connected: boolean;
 }
 
@@ -92,6 +96,7 @@ export interface PublicMultiplayerRoom {
   startedAt: number | null;
   endsAt: number | null;
   roleRevealEndsAt: number | null;
+  currentObstacle: Obstacle | null;
   winnerRole: MultiplayerRole | null;
   winnerSocketId: string | null;
   finishReason: 'caught' | 'timeout' | 'abandoned' | null;
