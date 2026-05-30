@@ -1,11 +1,17 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Difficulty, GameSession, MotionPayload, ObstacleType, PublicGameState } from '../types.js';
-import { DEFAULT_DIFFICULTY, DIFFICULTY_CONFIGS, MOTION_STALE_MS, OBSTACLE_TYPES } from './constants.js';
+import type { GameSession, MotionPayload, ObstacleType, PublicGameState } from '../types.js';
+import {
+  DEFAULT_DIFFICULTY,
+  getDynamicDifficultyConfig,
+  getSpeedMultiplier,
+  MOTION_STALE_MS,
+  OBSTACLE_TYPES,
+} from './constants.js';
 import { clamp, randomBetween } from './utils.js';
 
 export function createSession(playerName = 'Runner'): GameSession {
   const difficulty = DEFAULT_DIFFICULTY;
-  const config = DIFFICULTY_CONFIGS[difficulty];
+  const config = getDynamicDifficultyConfig(0);
   const now = Date.now();
 
   return {
@@ -13,6 +19,7 @@ export function createSession(playerName = 'Runner'): GameSession {
     playerName,
     gameState: 'MENU',
     difficulty,
+    speedMultiplier: 1,
     playerSpeed: 0,
     runningIntensity: 0,
     zombieDistance: config.startingDistance,
@@ -27,6 +34,9 @@ export function createSession(playerName = 'Runner'): GameSession {
     lastGameUpdate: now,
     score: 0,
     boostUntil: null,
+    lastEmittedObstacleId: null,
+    boostAnnouncedCombo: 0,
+    gameOverEmitted: false,
   };
 }
 
@@ -35,6 +45,7 @@ export function toPublicGameState(session: GameSession): PublicGameState {
     sessionId: session.sessionId,
     gameState: session.gameState,
     difficulty: session.difficulty,
+    speedMultiplier: session.speedMultiplier,
     playerSpeed: session.playerSpeed,
     runningIntensity: session.runningIntensity,
     zombieDistance: session.zombieDistance,
@@ -48,21 +59,14 @@ export function toPublicGameState(session: GameSession): PublicGameState {
   };
 }
 
-export function setDifficulty(session: GameSession, difficulty: Difficulty) {
-  const config = DIFFICULTY_CONFIGS[difficulty];
-  session.difficulty = difficulty;
-  session.zombieDistance = config.startingDistance;
-  session.nextObstacleAt = Date.now() + randomBetween(config.obstacleMinMs, config.obstacleMaxMs);
-  session.comboCount = 0;
-}
-
 export function startCalibration(session: GameSession) {
-  const config = DIFFICULTY_CONFIGS[session.difficulty];
+  const config = getDynamicDifficultyConfig(0);
   const now = Date.now();
   session.gameState = 'CALIBRATION';
   session.currentObstacle = null;
   session.comboCount = 0;
   session.survivalTime = 0;
+  session.speedMultiplier = 1;
   session.playerSpeed = 0;
   session.runningIntensity = 0;
   session.zombieDistance = config.startingDistance;
@@ -72,6 +76,9 @@ export function startCalibration(session: GameSession) {
   session.boostUntil = null;
   session.nextObstacleAt = now + randomBetween(config.obstacleMinMs, config.obstacleMaxMs);
   session.lastGameUpdate = now;
+  session.lastEmittedObstacleId = null;
+  session.boostAnnouncedCombo = 0;
+  session.gameOverEmitted = false;
 }
 
 export function confirmCalibration(session: GameSession) {
@@ -95,7 +102,6 @@ export function resumeSession(session: GameSession) {
 
 export function restartSession(session: GameSession) {
   const fresh = createSession(session.playerName);
-  fresh.difficulty = session.difficulty;
   Object.assign(session, fresh);
 }
 
@@ -153,7 +159,7 @@ function applyObstacleSuccess(session: GameSession) {
     return;
   }
 
-  const config = DIFFICULTY_CONFIGS[session.difficulty];
+  const config = getDynamicDifficultyConfig(session.survivalTime);
   session.currentObstacle.resolved = true;
   session.currentObstacle = null;
   session.comboCount += 1;
@@ -170,7 +176,7 @@ function applyObstacleSuccess(session: GameSession) {
 }
 
 function applyObstacleMiss(session: GameSession) {
-  const config = DIFFICULTY_CONFIGS[session.difficulty];
+  const config = getDynamicDifficultyConfig(session.survivalTime);
   if (session.currentObstacle) {
     session.currentObstacle.resolved = true;
   }
@@ -182,12 +188,12 @@ function applyObstacleMiss(session: GameSession) {
 }
 
 function scheduleNextObstacle(session: GameSession) {
-  const config = DIFFICULTY_CONFIGS[session.difficulty];
+  const config = getDynamicDifficultyConfig(session.survivalTime);
   session.nextObstacleAt = Date.now() + randomBetween(config.obstacleMinMs, config.obstacleMaxMs);
 }
 
 function spawnObstacle(session: GameSession, now: number) {
-  const config = DIFFICULTY_CONFIGS[session.difficulty];
+  const config = getDynamicDifficultyConfig(session.survivalTime);
   const type: ObstacleType = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
   session.currentObstacle = {
     id: uuidv4(),
@@ -215,8 +221,10 @@ export function tickSession(session: GameSession, now: number) {
     return;
   }
 
-  const config = DIFFICULTY_CONFIGS[session.difficulty];
   const deltaSeconds = deltaMs / 1000;
+  const nextSurvivalTime = session.survivalTime + deltaSeconds;
+  session.speedMultiplier = getSpeedMultiplier(nextSurvivalTime);
+  const config = getDynamicDifficultyConfig(nextSurvivalTime);
   const motionFresh = session.lastMotion ? now - session.lastMotion.timestamp < MOTION_STALE_MS : false;
   const rawSpeed = motionFresh ? session.playerSpeed : 0;
   const staminaDrain = Math.max(0, rawSpeed - 0.28) * 20 * deltaSeconds;
@@ -227,7 +235,7 @@ export function tickSession(session: GameSession, now: number) {
   const effectiveSpeed = rawSpeed * staminaMultiplier;
   const boostActive = Boolean(session.boostUntil && now < session.boostUntil);
 
-  session.survivalTime += deltaSeconds;
+  session.survivalTime = nextSurvivalTime;
   session.playerSpeed = effectiveSpeed;
 
   const pushBack = Math.max(0, effectiveSpeed - 0.16) * config.recoveryRate * deltaSeconds * 42;

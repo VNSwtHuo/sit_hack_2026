@@ -27,6 +27,7 @@ export interface GameSession {
   playerName: string;
   gameState: GameState;
   difficulty: Difficulty;
+  speedMultiplier: number;
   playerSpeed: number;
   runningIntensity: number;
   zombieDistance: number;
@@ -41,12 +42,17 @@ export interface GameSession {
   lastGameUpdate: number;
   score: number;
   boostUntil: number | null;
+  // Emission bookkeeping so one-shot events fire exactly once per occurrence.
+  lastEmittedObstacleId: string | null;
+  boostAnnouncedCombo: number;
+  gameOverEmitted: boolean;
 }
 
 export interface PublicGameState {
   sessionId: string;
   gameState: GameState;
   difficulty: Difficulty;
+  speedMultiplier: number;
   playerSpeed: number;
   runningIntensity: number;
   zombieDistance: number;
