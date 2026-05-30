@@ -35,9 +35,14 @@ let socket: ZombieRunSocket | null = null;
 
 export function getSocket() {
   if (!socket) {
+    // In production set VITE_SOCKET_URL to your deployed backend URL
+    // (e.g. https://zombie-run-backend.onrender.com). Locally it falls back to
+    // the same host on :4000, which also works for LAN play.
     const defaultSocketUrl = `${window.location.protocol}//${window.location.hostname}:4000`;
-    socket = io(import.meta.env.VITE_SOCKET_URL ?? defaultSocketUrl, {
-      transports: ['websocket'],
+    socket = io(import.meta.env.VITE_SOCKET_URL || defaultSocketUrl, {
+      // Prefer WebSocket, but allow HTTPS long-polling as a fallback for
+      // networks/proxies that block raw WebSockets.
+      transports: ['websocket', 'polling'],
       autoConnect: false,
     });
   }
