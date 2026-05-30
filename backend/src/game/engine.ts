@@ -4,10 +4,11 @@ import {
   DEFAULT_DIFFICULTY,
   getDynamicDifficultyConfig,
   getSpeedMultiplier,
-  LEVEL_ONE_SURVIVE_SECONDS,
-  LEVEL_TRANSITION_MS,
   MOTION_STALE_MS,
   OBSTACLE_TYPES,
+  SWAMP_INTERVAL_MAX_MS,
+  SWAMP_INTERVAL_MIN_MS,
+  SWAMP_STAGE_DURATION_MS,
 } from './constants.js';
 import { clamp, randomBetween } from './utils.js';
 
@@ -22,7 +23,6 @@ export function createSession(playerName = 'Runner'): GameSession {
     gameState: 'MENU',
     difficulty,
     speedMultiplier: 1,
-    currentLevel: 1,
     playerSpeed: 0,
     runningIntensity: 0,
     zombieDistance: config.startingDistance,
@@ -32,8 +32,9 @@ export function createSession(playerName = 'Runner'): GameSession {
     lastMotion: null,
     lastSixtySevenCount: 0,
     nextObstacleAt: now + config.obstacleMinMs,
+    nextSwampAt: now + randomBetween(SWAMP_INTERVAL_MIN_MS, SWAMP_INTERVAL_MAX_MS),
+    swampActiveUntil: null,
     countdownEndsAt: null,
-    nextLevelStartsAt: null,
     lastGameUpdate: now,
     score: 0,
     boostUntil: null,
@@ -49,7 +50,6 @@ export function toPublicGameState(session: GameSession): PublicGameState {
     gameState: session.gameState,
     difficulty: session.difficulty,
     speedMultiplier: session.speedMultiplier,
-    currentLevel: session.currentLevel,
     playerSpeed: session.playerSpeed,
     runningIntensity: session.runningIntensity,
     zombieDistance: session.zombieDistance,
@@ -58,7 +58,7 @@ export function toPublicGameState(session: GameSession): PublicGameState {
     currentObstacle: session.currentObstacle,
     score: session.score,
     countdownEndsAt: session.countdownEndsAt,
-    nextLevelStartsAt: session.nextLevelStartsAt,
+    swampActiveUntil: session.swampActiveUntil,
     boostUntil: session.boostUntil,
   };
 }
@@ -71,15 +71,15 @@ export function startCalibration(session: GameSession) {
   session.comboCount = 0;
   session.survivalTime = 0;
   session.speedMultiplier = 1;
-  session.currentLevel = 1;
   session.playerSpeed = 0;
   session.runningIntensity = 0;
   session.zombieDistance = config.startingDistance;
   session.score = 0;
   session.countdownEndsAt = null;
-  session.nextLevelStartsAt = null;
+  session.swampActiveUntil = null;
   session.boostUntil = null;
   session.nextObstacleAt = now + randomBetween(config.obstacleMinMs, config.obstacleMaxMs);
+  session.nextSwampAt = now + randomBetween(SWAMP_INTERVAL_MIN_MS, SWAMP_INTERVAL_MAX_MS);
   session.lastGameUpdate = now;
   session.lastEmittedObstacleId = null;
   session.boostAnnouncedCombo = 0;
@@ -89,7 +89,7 @@ export function startCalibration(session: GameSession) {
 export function confirmCalibration(session: GameSession) {
   session.gameState = 'COUNTDOWN';
   session.countdownEndsAt = Date.now() + 3200;
-  session.nextLevelStartsAt = null;
+  session.swampActiveUntil = null;
   session.currentObstacle = null;
 }
 
@@ -238,13 +238,13 @@ export function tickSession(session: GameSession, now: number) {
   session.survivalTime = nextSurvivalTime;
   session.playerSpeed = effectiveSpeed;
 
-  if (session.currentLevel === 1 && nextSurvivalTime >= LEVEL_ONE_SURVIVE_SECONDS) {
-    session.currentLevel = 2;
-    session.nextLevelStartsAt = now + LEVEL_TRANSITION_MS;
+  if (!session.swampActiveUntil && now >= session.nextSwampAt) {
+    session.swampActiveUntil = now + SWAMP_STAGE_DURATION_MS;
+    session.nextSwampAt = session.swampActiveUntil + randomBetween(SWAMP_INTERVAL_MIN_MS, SWAMP_INTERVAL_MAX_MS);
   }
 
-  if (session.nextLevelStartsAt && now >= session.nextLevelStartsAt) {
-    session.nextLevelStartsAt = null;
+  if (session.swampActiveUntil && now >= session.swampActiveUntil) {
+    session.swampActiveUntil = null;
   }
 
   const pushBack = Math.max(0, effectiveSpeed - 0.16) * config.recoveryRate * deltaSeconds * 42;

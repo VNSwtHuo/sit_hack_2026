@@ -12,8 +12,9 @@ export const OBSTACLE_TYPES: ObstacleType[] = [
 export const SPEED_INCREMENT_INTERVAL_MS = 15000;
 export const SPEED_INCREMENT = 0.08;
 export const MAX_SPEED_MULTIPLIER = 2.2;
-export const LEVEL_ONE_SURVIVE_SECONDS = 10;
-export const LEVEL_TRANSITION_MS = 5000;
+export const SWAMP_STAGE_DURATION_MS = 5000;
+export const SWAMP_INTERVAL_MIN_MS = 15000;
+export const SWAMP_INTERVAL_MAX_MS = 20000;
 
 export interface DifficultyConfig {
   chaseRate: number;

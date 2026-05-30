@@ -19,6 +19,9 @@ const MOTION_SEND_INTERVAL_MS = 66;
  * never remounted mid-game.
  */
 export function useZombieGame() {
+  const game = useGameSocket();
+  const [now, setNow] = useState(() => Date.now());
+  const swampActive = Boolean(game.gameState?.swampActiveUntil && game.gameState.swampActiveUntil > now);
   const {
     videoRef,
     canvasRef,
@@ -29,16 +32,14 @@ export function useZombieGame() {
     error: cameraError,
     start,
     stop,
-  } = usePoseTracker();
+  } = usePoseTracker(swampActive);
 
-  const game = useGameSocket();
   const { startCalibration, confirmCalibration } = game;
 
   const [calibration, setCalibration] = useState<CalibrationState>(() => createCalibrationState());
   const calibrationSamplesRef = useRef<CalibrationSample[]>([]);
   const motion = useMotionDetection(landmarks, calibration.profile, game.gameState?.currentObstacle ?? null);
   const lastMotionSentRef = useRef(0);
-  const [now, setNow] = useState(() => Date.now());
 
   // Lightweight clock used for countdowns and obstacle timers.
   useEffect(() => {
