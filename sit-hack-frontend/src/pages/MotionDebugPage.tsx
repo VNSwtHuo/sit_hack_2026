@@ -203,6 +203,10 @@ export function MotionDebugPage() {
                 label="Jump"
                 value={motion.jumpDetected ? "detected" : "idle"}
               />
+              <Metric
+                label="Duck"
+                value={motion.duckDetected ? "detected" : "idle"}
+              />
               <Metric label="67 count" value={String(motion.sixtySevenCount)} />
             </DebugCard>
 

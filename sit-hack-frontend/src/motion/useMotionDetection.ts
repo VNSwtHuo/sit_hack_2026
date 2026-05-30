@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import {
   DEFAULT_MOTION,
   POSE,
@@ -6,16 +6,17 @@ import {
   type MotionPayload,
   type Obstacle,
   type PoseLandmark,
-} from './motionTypes';
-import { getTorsoSample } from './calibration';
+} from "./motionTypes";
+import { getTorsoSample } from "./calibration";
 
 const RUN_HISTORY_SIZE = 8;
 const SEND_HISTORY_SIZE = 4;
 const KNEE_SPEED_DEADZONE = 0.18;
 const KNEE_SPEED_FULL_RUN = 1.25;
 const MIN_KNEE_VERTICAL_RANGE = 0.035;
-const SIXTY_SEVEN_ALTERNATIONS_REQUIRED = 10;
+const SIXTY_SEVEN_ALTERNATIONS_REQUIRED = 15;
 const JUMP_TASK_HEIGHT_MULTIPLIER = 0.08;
+const DUCK_TORSO_HEIGHT_DROP_MULTIPLIER = 0.18;
 
 interface MotionFrame {
   leftKneeRelativeY: number;
@@ -24,7 +25,7 @@ interface MotionFrame {
   time: number;
 }
 
-type WristPhase = 'unknown' | 'leftGreater' | 'rightGreater';
+type WristPhase = "unknown" | "leftGreater" | "rightGreater";
 
 export function useMotionDetection(
   landmarks: PoseLandmark[],
@@ -36,7 +37,9 @@ export function useMotionDetection(
   const smoothSpeedRef = useRef<number[]>([]);
   const jumpObstacleIdRef = useRef<string | null>(null);
   const jumpBaselineTorsoYRef = useRef<number | null>(null);
-  const wristPhaseRef = useRef<WristPhase>('unknown');
+  const duckObstacleIdRef = useRef<string | null>(null);
+  const duckBaselineTorsoHeightRef = useRef<number | null>(null);
+  const wristPhaseRef = useRef<WristPhase>("unknown");
   const wristAlternationCountRef = useRef(0);
   const sixtySevenCountRef = useRef(0);
 
@@ -68,13 +71,18 @@ export function useMotionDetection(
       framesRef.current.shift();
     }
 
-    const runningIntensity = detectRunning(framesRef.current, calibration.bodyScale);
+    const runningIntensity = detectRunning(
+      framesRef.current,
+      calibration.bodyScale,
+    );
     smoothSpeedRef.current.push(runningIntensity);
     if (smoothSpeedRef.current.length > SEND_HISTORY_SIZE) {
       smoothSpeedRef.current.shift();
     }
 
-    const playerSpeed = smoothSpeedRef.current.reduce((sum, value) => sum + value, 0) / smoothSpeedRef.current.length;
+    const playerSpeed =
+      smoothSpeedRef.current.reduce((sum, value) => sum + value, 0) /
+      smoothSpeedRef.current.length;
     const isRunning = playerSpeed > 0.16;
     const lane = detectLane(sample.centerX, calibration);
     const jumpDetected = detectJump(
@@ -84,13 +92,26 @@ export function useMotionDetection(
       jumpObstacleIdRef,
       jumpBaselineTorsoYRef,
     );
-    updateSixtySeven(leftWrist.y, rightWrist.y, wristPhaseRef, wristAlternationCountRef, sixtySevenCountRef);
+    const duckDetected = detectDuck(
+      Math.abs(sample.hipY - sample.shoulderY),
+      activeObstacle,
+      duckObstacleIdRef,
+      duckBaselineTorsoHeightRef,
+    );
+    updateSixtySeven(
+      leftWrist.y,
+      rightWrist.y,
+      wristPhaseRef,
+      wristAlternationCountRef,
+      sixtySevenCountRef,
+    );
 
     setMotion({
       runningIntensity,
       playerSpeed,
       isRunning,
       jumpDetected,
+      duckDetected,
       lane,
       sixtySevenCount: sixtySevenCountRef.current,
       confidence: sample.confidence,
@@ -112,8 +133,12 @@ function detectRunning(frames: MotionFrame[], bodyScale: number) {
     const previous = frames[index - 1];
     const current = frames[index];
     const deltaSeconds = Math.max(0.001, (current.time - previous.time) / 1000);
-    const leftVelocity = Math.abs(current.leftKneeRelativeY - previous.leftKneeRelativeY) / deltaSeconds;
-    const rightVelocity = Math.abs(current.rightKneeRelativeY - previous.rightKneeRelativeY) / deltaSeconds;
+    const leftVelocity =
+      Math.abs(current.leftKneeRelativeY - previous.leftKneeRelativeY) /
+      deltaSeconds;
+    const rightVelocity =
+      Math.abs(current.rightKneeRelativeY - previous.rightKneeRelativeY) /
+      deltaSeconds;
 
     totalKneeVelocity += leftVelocity + rightVelocity;
     sampleCount += 2;
@@ -121,10 +146,18 @@ function detectRunning(frames: MotionFrame[], bodyScale: number) {
 
   const leftRange = getRange(frames.map((frame) => frame.leftKneeRelativeY));
   const rightRange = getRange(frames.map((frame) => frame.rightKneeRelativeY));
-  const normalizedRange = Math.max(leftRange, rightRange) / Math.max(0.08, bodyScale);
-  const rangeMultiplier = clamp(normalizedRange / MIN_KNEE_VERTICAL_RANGE, 0, 1);
-  const normalizedVelocity = (totalKneeVelocity / sampleCount) / Math.max(0.08, bodyScale);
-  const scaled = (normalizedVelocity - KNEE_SPEED_DEADZONE) / (KNEE_SPEED_FULL_RUN - KNEE_SPEED_DEADZONE);
+  const normalizedRange =
+    Math.max(leftRange, rightRange) / Math.max(0.08, bodyScale);
+  const rangeMultiplier = clamp(
+    normalizedRange / MIN_KNEE_VERTICAL_RANGE,
+    0,
+    1,
+  );
+  const normalizedVelocity =
+    totalKneeVelocity / sampleCount / Math.max(0.08, bodyScale);
+  const scaled =
+    (normalizedVelocity - KNEE_SPEED_DEADZONE) /
+    (KNEE_SPEED_FULL_RUN - KNEE_SPEED_DEADZONE);
 
   return clamp(scaled, 0, 1) * rangeMultiplier;
 }
@@ -136,12 +169,12 @@ function getRange(values: number[]) {
 function detectLane(centerX: number, calibration: CalibrationProfile) {
   const offset = centerX - calibration.centerX;
   if (offset < -calibration.laneThreshold) {
-    return 'left';
+    return "left";
   }
   if (offset > calibration.laneThreshold) {
-    return 'right';
+    return "right";
   }
-  return 'center';
+  return "center";
 }
 
 function detectJump(
@@ -151,7 +184,7 @@ function detectJump(
   obstacleIdRef: MutableRefObject<string | null>,
   baselineTorsoYRef: MutableRefObject<number | null>,
 ) {
-  if (activeObstacle?.type !== 'JUMP') {
+  if (activeObstacle?.type !== "JUMP") {
     obstacleIdRef.current = null;
     baselineTorsoYRef.current = null;
     return false;
@@ -165,9 +198,40 @@ function detectJump(
 
   const baselineTorsoY = baselineTorsoYRef.current ?? torsoY;
   const jumpHeight = baselineTorsoY - torsoY;
-  const requiredHeight = Math.max(0.018, calibration.bodyScale * JUMP_TASK_HEIGHT_MULTIPLIER);
+  const requiredHeight = Math.max(
+    0.018,
+    calibration.bodyScale * JUMP_TASK_HEIGHT_MULTIPLIER,
+  );
 
   return jumpHeight > requiredHeight;
+}
+
+function detectDuck(
+  torsoHeight: number,
+  activeObstacle: Obstacle | null,
+  obstacleIdRef: MutableRefObject<string | null>,
+  baselineTorsoHeightRef: MutableRefObject<number | null>,
+) {
+  if (activeObstacle?.type !== "DUCK") {
+    obstacleIdRef.current = null;
+    baselineTorsoHeightRef.current = null;
+    return false;
+  }
+
+  if (obstacleIdRef.current !== activeObstacle.id) {
+    obstacleIdRef.current = activeObstacle.id;
+    baselineTorsoHeightRef.current = torsoHeight;
+    return false;
+  }
+
+  const baselineTorsoHeight = baselineTorsoHeightRef.current ?? torsoHeight;
+  const torsoHeightDrop = baselineTorsoHeight - torsoHeight;
+  const requiredDrop = Math.max(
+    0.025,
+    baselineTorsoHeight * DUCK_TORSO_HEIGHT_DROP_MULTIPLIER,
+  );
+
+  return torsoHeightDrop > requiredDrop;
 }
 
 function updateSixtySeven(
@@ -177,9 +241,10 @@ function updateSixtySeven(
   alternationCountRef: MutableRefObject<number>,
   countRef: MutableRefObject<number>,
 ) {
-  const nextPhase: WristPhase = leftWristY > rightWristY ? 'leftGreater' : 'rightGreater';
+  const nextPhase: WristPhase =
+    leftWristY > rightWristY ? "leftGreater" : "rightGreater";
 
-  if (phaseRef.current !== 'unknown' && nextPhase !== phaseRef.current) {
+  if (phaseRef.current !== "unknown" && nextPhase !== phaseRef.current) {
     alternationCountRef.current += 1;
   }
 
