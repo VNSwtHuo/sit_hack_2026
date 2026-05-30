@@ -6,6 +6,7 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { Hud } from "../components/Hud";
 import { Landing } from "../components/Landing";
 import { ObstaclePrompt } from "../components/ObstaclePrompt";
@@ -26,6 +27,7 @@ const CALIBRATION_CONFIDENCE_GATE = 0.8;
 const GAME_MUSIC_URL = "/circuit-bloodrun.mp3";
 
 export function GamePage() {
+  const navigate = useNavigate();
   const game = useZombieGame();
   const {
     videoRef,
@@ -219,6 +221,7 @@ export function GamePage() {
         <Landing
           connected={connected}
           onStart={handleStart}
+          onVersus={() => navigate("/versus")}
           zombieFace={zombieFace}
           headAvatar={headAvatar}
           onZombieFaceChange={setZombieFace}

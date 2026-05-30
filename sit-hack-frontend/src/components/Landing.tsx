@@ -14,6 +14,7 @@ const HEAD_PRESETS: Array<{ path: string; label: string }> = [
 interface LandingProps {
   connected: boolean;
   onStart: () => void;
+  onVersus: () => void;
   zombieFace: string | null;
   headAvatar: string | null;
   onZombieFaceChange: (value: string | null) => void;
@@ -23,6 +24,7 @@ interface LandingProps {
 export function Landing({
   connected,
   onStart,
+  onVersus,
   zombieFace,
   headAvatar,
   onZombieFaceChange,
@@ -153,29 +155,54 @@ export function Landing({
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={!connected}
-          className="rounded-xl px-10 py-4 transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-          style={{
-            background:
-              "linear-gradient(180deg, #a7ff83 0%, #17b978 60%, #0d9460 100%)",
-            boxShadow: "0 6px 0 #065e3f, 0 0 30px rgba(23,185,120,0.5)",
-          }}
-        >
-          <span
+        <div className="flex flex-col items-center gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={!connected}
+            className="rounded-xl px-10 py-4 transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             style={{
-              fontFamily: "Zombie",
-              fontSize: "2.5rem",
-              color: "#083339",
-              letterSpacing: "0.05em",
-              lineHeight: 1,
+              background:
+                "linear-gradient(180deg, #a7ff83 0%, #17b978 60%, #0d9460 100%)",
+              boxShadow: "0 6px 0 #065e3f, 0 0 30px rgba(23,185,120,0.5)",
             }}
           >
-            {connected ? "START RUNNING" : "CONNECTING..."}
-          </span>
-        </button>
+            <span
+              style={{
+                fontFamily: "Zombie",
+                fontSize: "2.5rem",
+                color: "#083339",
+                letterSpacing: "0.05em",
+                lineHeight: 1,
+              }}
+            >
+              {connected ? "START RUNNING" : "CONNECTING..."}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onVersus}
+            disabled={!connected}
+            className="rounded-xl border-2 border-[#17b978] px-8 py-4 transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: "rgba(8, 51, 57, 0.6)",
+              boxShadow: "0 0 24px rgba(23,185,120,0.35)",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "Zombie",
+                fontSize: "2.5rem",
+                color: "#a7ff83",
+                letterSpacing: "0.05em",
+                lineHeight: 1,
+              }}
+            >
+              2-PLAYER VERSUS
+            </span>
+          </button>
+        </div>
       </motion.div>
 
       {/* Customize zombie face modal */}

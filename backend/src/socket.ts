@@ -12,6 +12,7 @@ import {
   toPublicGameState,
 } from './game/engine.js';
 import { GAME_UPDATE_MS } from './game/constants.js';
+import { registerVersusHandlers, startVersusLoop } from './versusSocket.js';
 import type { GameSession, MotionPayload } from './types.js';
 
 const sessions = new Map<string, GameSession>();
@@ -20,7 +21,7 @@ function emitGameState(socket: Socket, session: GameSession) {
   socket.emit('game-state', toPublicGameState(session));
 }
 
-function bindSessionHandlers(socket: Socket) {
+function bindSessionHandlers(io: Server, socket: Socket) {
   const session = createSession('Runner');
   sessions.set(socket.id, session);
 
@@ -72,10 +73,14 @@ function bindSessionHandlers(socket: Socket) {
   socket.on('disconnect', () => {
     sessions.delete(socket.id);
   });
+
+  // Two-player versus mode shares the same socket connection.
+  registerVersusHandlers(io, socket);
 }
 
 export function registerSocketHandlers(io: Server) {
-  io.on('connection', bindSessionHandlers);
+  io.on('connection', (socket: Socket) => bindSessionHandlers(io, socket));
+  startVersusLoop(io);
 
   setInterval(() => {
     const now = Date.now();

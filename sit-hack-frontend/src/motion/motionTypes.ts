@@ -68,6 +68,34 @@ export interface PublicGameState {
   boostUntil: number | null;
 }
 
+// ---- Two-player versus mode ----
+export type VersusRole = 'HUMAN' | 'ZOMBIE';
+export type VersusState = 'LOBBY' | 'COUNTDOWN' | 'RUNNING' | 'FINISHED';
+
+export interface VersusPublicPlayer {
+  role: VersusRole;
+  name: string;
+  connected: boolean;
+  ready: boolean;
+  speed: number;
+  hits: number;
+  misses: number;
+  currentObstacle: Obstacle | null;
+}
+
+export interface VersusPublicState {
+  code: string;
+  state: VersusState;
+  gap: number;
+  maxGap: number;
+  elapsed: number;
+  escapeTime: number;
+  countdownEndsAt: number | null;
+  winner: VersusRole | null;
+  endReason: string | null;
+  players: Partial<Record<VersusRole, VersusPublicPlayer>>;
+}
+
 export const POSE = {
   leftShoulder: 11,
   rightShoulder: 12,
