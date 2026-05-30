@@ -72,13 +72,13 @@ button {
 .font-zombie {
   font-family: "Zombie", cursive;
 
-  color: #082f49;
+  color: #98d57b;
 
   text-shadow:
-    1px 0 0 #082f49,
-   -1px 0 0 #082f49,
-    0 1px 0 #082f49,
-    0 -1px 0 #082f49;
+    1px 0 0 #337147,
+   -1px 0 0 #337147,
+    0 1px 0 #337147,
+    0 -1px 0 #337147;
 }
 
 /* Glitch text effect */

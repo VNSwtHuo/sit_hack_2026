@@ -82,24 +82,30 @@ export interface MultiplayerPlayer {
   obstaclePenaltyUntil: number | null;
   lastSixtySevenCount: number;
   connected: boolean;
+  boostUntil: number | null;
+  /** Metres this player has accumulated by running. */
+  distance: number;
 }
 
 export interface PublicMultiplayerRoom {
   code: string;
   hostSocketId: string;
-  durationSeconds: number;
+  /** Distance (m) the survivor must reach to win. */
+  targetDistance: number;
+  /** Survivor's starting lead (m). The chase bar is "full" while gap >= this. */
+  headStart: number;
   phase: MultiplayerPhase;
   players: MultiplayerPlayer[];
+  /** survivorDistance + headStart - zombieDistance. gap <= 0 means caught. */
   gap: number;
-  initialGap: number;
-  maxGap: number;
   startedAt: number | null;
-  endsAt: number | null;
   roleRevealEndsAt: number | null;
   currentObstacle: Obstacle | null;
   winnerRole: MultiplayerRole | null;
   winnerSocketId: string | null;
-  finishReason: 'caught' | 'timeout' | 'abandoned' | null;
+  finishReason: 'caught' | 'reached' | 'abandoned' | null;
+  /** Server clock at broadcast time, so clients can correct for clock skew. */
+  serverNow: number;
 }
 
 export const POSE = {

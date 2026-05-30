@@ -20,6 +20,11 @@ import {
   PausedOverlay,
 } from "../components/Overlays";
 import { useZombieGame } from "../game/useZombieGame";
+import {
+  loadCustomizations,
+  saveHeadAvatar,
+  saveZombieFace,
+} from "../game/customizations";
 import { POSE, type PoseLandmark } from "../motion/motionTypes";
 import landingMusicUrl from "../../landing_page.mp3?url";
 
@@ -38,6 +43,7 @@ export function GamePage() {
     cameraOn,
     cameraError,
     startCamera,
+    stopCamera,
     calibration,
     beginCalibrationFlow,
     resetCalibration,
@@ -53,9 +59,22 @@ export function GamePage() {
 
   const [wantsCalibration, setWantsCalibration] = useState(false);
   const [faceSnapshot, setFaceSnapshot] = useState<string | null>(null);
-  // Player customizations chosen on the landing screen.
-  const [zombieFace, setZombieFace] = useState<string | null>(null);
-  const [headAvatar, setHeadAvatar] = useState<string | null>(null);
+  // Player customizations chosen on the landing screen (persisted so they
+  // carry into multiplayer too).
+  const [zombieFace, setZombieFace] = useState<string | null>(
+    () => loadCustomizations().zombieFace,
+  );
+  const [headAvatar, setHeadAvatar] = useState<string | null>(
+    () => loadCustomizations().headAvatar,
+  );
+  const handleZombieFaceChange = useCallback((value: string | null) => {
+    setZombieFace(value);
+    saveZombieFace(value);
+  }, []);
+  const handleHeadAvatarChange = useCallback((value: string | null) => {
+    setHeadAvatar(value);
+    saveHeadAvatar(value);
+  }, []);
   // Music preference, toggled from the landing screen.
   const [musicOn, setMusicOn] = useState(true);
   const landingMusicRef = useRef<HTMLAudioElement | null>(null);
@@ -152,9 +171,10 @@ export function GamePage() {
     stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
     clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
     recordingObstacleIdRef.current = null;
+    void startCamera(); // reopen the camera that closed on game over
     restart();
     confirmCalibration();
-  }, [restart, confirmCalibration]);
+  }, [restart, confirmCalibration, startCamera]);
 
   const handleMenu = useCallback(() => {
     setFaceSnapshot(null);
@@ -176,6 +196,15 @@ export function GamePage() {
       setFaceSnapshot(snapshot);
     }
   }, [gs, faceSnapshot, canvasRef, landmarks]);
+
+  // On game over, freeze the canvas on its last frame and close the camera.
+  // (This effect runs after the face-capture effect above, so the snapshot is
+  // taken from the still-live canvas before the camera stops.)
+  useEffect(() => {
+    if (gs === "GAME_OVER") {
+      stopCamera();
+    }
+  }, [gs, stopCamera]);
 
   useEffect(() => {
     if (showLanding && musicOn) {
@@ -281,8 +310,8 @@ export function GamePage() {
           onToggleMusic={handleToggleMusic}
           zombieFace={zombieFace}
           headAvatar={headAvatar}
-          onZombieFaceChange={setZombieFace}
-          onHeadAvatarChange={setHeadAvatar}
+          onZombieFaceChange={handleZombieFaceChange}
+          onHeadAvatarChange={handleHeadAvatarChange}
         />
       ) : (
         <div className="relative h-screen w-screen overflow-hidden bg-black">

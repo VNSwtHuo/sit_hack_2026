@@ -8,9 +8,12 @@ import { registerSocketHandlers } from './socket.js';
 dotenv.config();
 
 const app = express();
-const frontendOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173';
+// Allow any origin by default so two laptops on the same LAN (each reaching the
+// host via its IP) can connect. Override with FRONTEND_ORIGIN to lock it down.
+const frontendOrigin = process.env.FRONTEND_ORIGIN ?? true;
 const port = Number(process.env.PORT ?? 4000);
-const host = process.env.HOST ?? '127.0.0.1';
+// Bind all interfaces by default so other devices on the network can reach it.
+const host = process.env.HOST ?? '0.0.0.0';
 
 app.use(cors({ origin: frontendOrigin, methods: ['GET', 'POST'], credentials: true }));
 app.use(express.json());
@@ -30,6 +33,10 @@ const io = new Server(httpServer, {
 registerSocketHandlers(io);
 
 httpServer.listen(port, host, () => {
-  console.log(`Zombie Run backend listening on http://${host}:${port}`);
-  console.log(`Allowing frontend origin: ${frontendOrigin}`);
+  console.log(`Zombie Run backend listening on ${host}:${port}`);
+  console.log(
+    frontendOrigin === true
+      ? 'Allowing connections from any origin (LAN-friendly).'
+      : `Allowing frontend origin: ${frontendOrigin}`,
+  );
 });

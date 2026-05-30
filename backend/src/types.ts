@@ -63,3 +63,74 @@ export interface PublicGameState {
   countdownEndsAt: number | null;
   boostUntil: number | null;
 }
+
+// ---------------------------------------------------------------------------
+// Two-player (LAN) multiplayer
+// ---------------------------------------------------------------------------
+
+export type MultiplayerRole = 'zombie' | 'survivor';
+export type MultiplayerPhase = 'LOBBY' | 'ROLE_REVEAL' | 'RUNNING' | 'FINISHED';
+export type MultiplayerFinishReason = 'caught' | 'reached' | 'abandoned';
+
+/** Player fields that are safe to broadcast to both clients. */
+export interface MultiplayerPlayerPublic {
+  socketId: string;
+  name: string;
+  isHost: boolean;
+  ready: boolean;
+  role: MultiplayerRole | null;
+  speed: number;
+  sixtySevenCount: number;
+  obstacleResolved: boolean;
+  obstaclePenaltyUntil: number | null;
+  lastSixtySevenCount: number;
+  connected: boolean;
+  boostUntil: number | null;
+  /** Metres this player has accumulated by running. */
+  distance: number;
+}
+
+/** Server-only player state (never broadcast). */
+export interface MultiplayerPlayerInternal extends MultiplayerPlayerPublic {
+  lastMotionAt: number;
+  comboCount: number;
+}
+
+export interface PublicMultiplayerRoom {
+  code: string;
+  hostSocketId: string;
+  /** Distance (m) the survivor must reach to win. */
+  targetDistance: number;
+  /** Survivor's starting lead (m). The chase bar is "full" while gap >= this. */
+  headStart: number;
+  phase: MultiplayerPhase;
+  players: MultiplayerPlayerPublic[];
+  /** survivorDistance + headStart - zombieDistance. gap <= 0 means caught. */
+  gap: number;
+  startedAt: number | null;
+  roleRevealEndsAt: number | null;
+  currentObstacle: Obstacle | null;
+  winnerRole: MultiplayerRole | null;
+  winnerSocketId: string | null;
+  finishReason: MultiplayerFinishReason | null;
+  /** Server clock at broadcast time, so clients can correct for clock skew. */
+  serverNow: number;
+}
+
+export interface MultiplayerRoom {
+  code: string;
+  hostSocketId: string;
+  targetDistance: number;
+  headStart: number;
+  phase: MultiplayerPhase;
+  players: MultiplayerPlayerInternal[];
+  gap: number;
+  startedAt: number | null;
+  roleRevealEndsAt: number | null;
+  currentObstacle: Obstacle | null;
+  nextObstacleAt: number;
+  lastUpdate: number;
+  winnerRole: MultiplayerRole | null;
+  winnerSocketId: string | null;
+  finishReason: MultiplayerFinishReason | null;
+}
