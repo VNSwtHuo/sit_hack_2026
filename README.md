@@ -36,16 +36,53 @@ access when prompted.
 
 ## Routes
 
-- `/` — the game
+- `/` — the single-player game
+- `/multiplayer` — two-player (LAN) zombie-vs-survivor
 - `/debug` — a live motion / pose / game-state debug dashboard
+
+## Two-player on two laptops (same Wi-Fi / LAN)
+
+One laptop runs the servers (the "host machine"); both laptops play in the browser.
+
+1. **On the host machine**, start everything:
+
+   ```bash
+   npm run dev
+   ```
+
+   The Vite dev server is started with `--host`, so it's reachable on the LAN, and
+   the backend binds `0.0.0.0:4000`.
+
+2. **Find the host machine's LAN IP** (e.g. `192.168.1.23`):
+   - macOS: `ipconfig getifaddr en0`
+   - Windows: `ipconfig` → "IPv4 Address"
+   - Linux: `hostname -I`
+
+3. **On _both_ laptops**, open the browser to the host's IP and go to multiplayer:
+
+   ```
+   http://<HOST_IP>:5173/multiplayer
+   ```
+
+   (On the host machine you can also use `http://localhost:5173/multiplayer`.)
+   The frontend automatically connects its Socket.IO client to `http://<same-host>:4000`,
+   so no configuration is needed.
+
+4. One player clicks **Create room** and shares the 4-letter code. The other clicks
+   **Join room** and enters it. Both **Calibrate**; once both show **Ready**, the host
+   gets a **Start** button. Roles (zombie / survivor) are revealed, then the match runs:
+   the **survivor wins** if the timer runs out, the **zombie wins** by catching up first.
+
+> Both laptops need a webcam and must be on the same network. If a firewall blocks the
+> connection, allow inbound traffic on ports `5173` and `4000` on the host machine.
 
 ## Useful scripts (root)
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Run backend + frontend together (dev) |
-| `npm run build` | Type-check & build both projects |
-| `npm run start` | Run the built backend |
+| Command         | Description                           |
+| --------------- | ------------------------------------- |
+| `npm run dev`   | Run backend + frontend together (dev) |
+| `npm run build` | Type-check & build both projects      |
+| `npm run start` | Run the built backend                 |
 
 ### Configuration
 

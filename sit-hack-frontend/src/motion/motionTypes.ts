@@ -82,6 +82,7 @@ export interface MultiplayerPlayer {
   obstaclePenaltyUntil: number | null;
   lastSixtySevenCount: number;
   connected: boolean;
+  boostUntil: number | null;
 }
 
 export interface PublicMultiplayerRoom {
@@ -100,6 +101,8 @@ export interface PublicMultiplayerRoom {
   winnerRole: MultiplayerRole | null;
   winnerSocketId: string | null;
   finishReason: 'caught' | 'timeout' | 'abandoned' | null;
+  /** Server clock at broadcast time, so clients can correct for clock skew. */
+  serverNow: number;
 }
 
 export const POSE = {
