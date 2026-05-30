@@ -36,7 +36,7 @@ export function useZombieGame() {
 
   const [calibration, setCalibration] = useState<CalibrationState>(() => createCalibrationState());
   const calibrationSamplesRef = useRef<CalibrationSample[]>([]);
-  const motion = useMotionDetection(landmarks, calibration.profile);
+  const motion = useMotionDetection(landmarks, calibration.profile, game.gameState?.currentObstacle ?? null);
   const lastMotionSentRef = useRef(0);
   const [now, setNow] = useState(() => Date.now());
 

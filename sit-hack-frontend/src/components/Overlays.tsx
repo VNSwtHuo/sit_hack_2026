@@ -100,6 +100,33 @@ export function PausedOverlay({ onResume }: { onResume: () => void }) {
   );
 }
 
+export function LevelTransitionOverlay({
+  currentLevel,
+  secondsRemaining,
+}: {
+  currentLevel: number;
+  secondsRemaining: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -24, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -24, scale: 0.96 }}
+      className="pointer-events-none absolute left-1/2 top-4 z-40 flex w-[min(92vw,44rem)] -translate-x-1/2 items-center justify-between gap-4 rounded-xl border-2 border-red-500 bg-neutral-950/85 px-5 py-3 text-left shadow-[0_0_34px_rgba(239,68,68,0.35)] backdrop-blur"
+    >
+      <div>
+        <div className="text-[10px] font-black uppercase tracking-[0.35em] text-lime-300">Level {currentLevel} cleared</div>
+        <div className="text-lg font-black uppercase tracking-widest text-neutral-100 sm:text-2xl">
+          Moving to next stage in
+        </div>
+      </div>
+      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full border-4 border-red-500 bg-red-500/20 text-3xl font-black tabular-nums text-red-200">
+        {Math.max(1, secondsRemaining)}
+      </div>
+    </motion.div>
+  );
+}
+
 export function GameOverOverlay({
   score,
   survivalTime,

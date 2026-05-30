@@ -48,7 +48,7 @@ export function MotionDebugPage() {
   const [now, setNow] = useState(() => Date.now());
   const calibrationSamplesRef = useRef<CalibrationSample[]>([]);
   const lastMotionSentRef = useRef(0);
-  const motion = useMotionDetection(landmarks, calibration.profile);
+  const motion = useMotionDetection(landmarks, calibration.profile, gameState?.currentObstacle ?? null);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 250);

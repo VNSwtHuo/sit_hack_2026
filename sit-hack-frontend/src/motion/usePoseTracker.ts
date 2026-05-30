@@ -60,13 +60,13 @@ const SCRIPT_URLS = [
   "https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js",
 ];
 
-const PERSON_BACKGROUND_URL = "/background.png";
+const PERSON_BACKGROUND_VIDEO_URL = "/r_video_background.mp4";
 
 export function usePoseTracker() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const backgroundImageRef = useRef<HTMLImageElement | null>(null);
+  const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraRef = useRef<MediaPipeCamera | null>(null);
   const poseRef = useRef<MediaPipePose | null>(null);
   const frameTimesRef = useRef<number[]>([]);
@@ -96,9 +96,12 @@ export function usePoseTracker() {
     context.save();
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    const backgroundImage = backgroundImageRef.current;
-    if (backgroundImage?.complete && backgroundImage.naturalWidth > 0) {
-      drawImageCover(context, backgroundImage, canvas.width, canvas.height);
+    const backgroundVideo = backgroundVideoRef.current;
+    if (
+      backgroundVideo &&
+      backgroundVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+    ) {
+      drawVideoCover(context, backgroundVideo, canvas.width, canvas.height);
     } else {
       context.fillStyle = "#0f172a";
       context.fillRect(0, 0, canvas.width, canvas.height);
@@ -175,12 +178,20 @@ export function usePoseTracker() {
   }, []);
 
   useEffect(() => {
-    const backgroundImage = new Image();
-    backgroundImage.src = PERSON_BACKGROUND_URL;
-    backgroundImageRef.current = backgroundImage;
+    const backgroundVideo = document.createElement("video");
+    backgroundVideo.src = PERSON_BACKGROUND_VIDEO_URL;
+    backgroundVideo.loop = true;
+    backgroundVideo.muted = true;
+    backgroundVideo.playsInline = true;
+    backgroundVideo.preload = "auto";
+    backgroundVideoRef.current = backgroundVideo;
+    void backgroundVideo.play().catch(() => {
+      // Muted autoplay can still be delayed until the camera-start gesture.
+    });
 
     return () => {
-      backgroundImageRef.current = null;
+      backgroundVideo.pause();
+      backgroundVideoRef.current = null;
     };
   }, []);
 
@@ -197,6 +208,10 @@ export function usePoseTracker() {
           "MediaPipe scripts loaded without Pose or Camera globals",
         );
       }
+
+      void backgroundVideoRef.current?.play().catch(() => {
+        // The start button click usually unlocks muted video playback.
+      });
 
       const pose = new window.Pose({
         locateFile: (file) =>
@@ -280,20 +295,20 @@ export function usePoseTracker() {
   };
 }
 
-function drawImageCover(
+function drawVideoCover(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  video: HTMLVideoElement,
   width: number,
   height: number,
 ) {
-  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const imageRatio = video.videoWidth / video.videoHeight;
   const canvasRatio = width / height;
   const drawWidth = imageRatio > canvasRatio ? height * imageRatio : width;
   const drawHeight = imageRatio > canvasRatio ? height : width / imageRatio;
   const dx = (width - drawWidth) / 2;
   const dy = (height - drawHeight) / 2;
 
-  context.drawImage(image, dx, dy, drawWidth, drawHeight);
+  context.drawImage(video, dx, dy, drawWidth, drawHeight);
 }
 
 function loadMediaPipeScripts() {

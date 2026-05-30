@@ -22,6 +22,7 @@ export function Hud({ state, running, paused, onPauseToggle }: HudProps) {
             <span className="text-xs uppercase tracking-widest text-neutral-500">score</span>
           </div>
           <div className="flex gap-4 text-xs text-neutral-400">
+            <span className="text-neutral-300">Level {state.currentLevel}</span>
             <span>⏱ {state.survivalTime.toFixed(1)}s</span>
             <span className="text-neutral-300">Speed x{state.speedMultiplier.toFixed(2)}</span>
           </div>
