@@ -42,6 +42,45 @@ button {
   );
 }
 
+@font-face {
+  font-family: "Zombie";
+  src: url("/Creepster.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+.zombie-title {
+  font-family: "Zombie", cursive;
+  color: #98d47b;
+
+  /* dark green outline */
+  -webkit-text-stroke: 2px #29563d;
+
+  /* layered shadow for cartoon/slime depth */
+  text-shadow:
+    1px 1px 0 #29563d,
+    2px 2px 0 #29563d,
+    3px 3px 0 #29563d,
+    4px 4px 0 #29563d,
+    5px 5px 0 #29563d,
+    0 0 10px rgba(152, 212, 123, 0.4);
+
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+.font-zombie {
+  font-family: "Zombie", cursive;
+
+  color: #082f49;
+
+  text-shadow:
+    1px 0 0 #082f49,
+   -1px 0 0 #082f49,
+    0 1px 0 #082f49,
+    0 -1px 0 #082f49;
+}
+
 /* Glitch text effect */
 .glitch {
   position: relative;
