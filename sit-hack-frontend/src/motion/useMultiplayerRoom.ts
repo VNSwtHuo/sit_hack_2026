@@ -44,7 +44,7 @@ export function useMultiplayerRoom() {
   }, []);
 
   const createRoom = useCallback(
-    (payload: { playerName?: string; durationSeconds?: number }) => {
+    (payload: { playerName?: string; targetDistance?: number }) => {
       socketRef.current.emit("multiplayer-create-room", payload);
     },
     [],
@@ -57,8 +57,8 @@ export function useMultiplayerRoom() {
     [],
   );
 
-  const setDuration = useCallback((durationSeconds: number) => {
-    socketRef.current.emit("multiplayer-set-duration", { durationSeconds });
+  const setTarget = useCallback((targetDistance: number) => {
+    socketRef.current.emit("multiplayer-set-target", { targetDistance });
   }, []);
 
   const setReady = useCallback((ready: boolean) => {
@@ -85,7 +85,7 @@ export function useMultiplayerRoom() {
     error,
     createRoom,
     joinRoom,
-    setDuration,
+    setTarget,
     setReady,
     startRoom,
     sendMotion,

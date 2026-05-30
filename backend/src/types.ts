@@ -70,7 +70,7 @@ export interface PublicGameState {
 
 export type MultiplayerRole = 'zombie' | 'survivor';
 export type MultiplayerPhase = 'LOBBY' | 'ROLE_REVEAL' | 'RUNNING' | 'FINISHED';
-export type MultiplayerFinishReason = 'caught' | 'timeout' | 'abandoned';
+export type MultiplayerFinishReason = 'caught' | 'reached' | 'abandoned';
 
 /** Player fields that are safe to broadcast to both clients. */
 export interface MultiplayerPlayerPublic {
@@ -86,6 +86,8 @@ export interface MultiplayerPlayerPublic {
   lastSixtySevenCount: number;
   connected: boolean;
   boostUntil: number | null;
+  /** Metres this player has accumulated by running. */
+  distance: number;
 }
 
 /** Server-only player state (never broadcast). */
@@ -97,14 +99,15 @@ export interface MultiplayerPlayerInternal extends MultiplayerPlayerPublic {
 export interface PublicMultiplayerRoom {
   code: string;
   hostSocketId: string;
-  durationSeconds: number;
+  /** Distance (m) the survivor must reach to win. */
+  targetDistance: number;
+  /** Survivor's starting lead (m). The chase bar is "full" while gap >= this. */
+  headStart: number;
   phase: MultiplayerPhase;
   players: MultiplayerPlayerPublic[];
+  /** survivorDistance + headStart - zombieDistance. gap <= 0 means caught. */
   gap: number;
-  initialGap: number;
-  maxGap: number;
   startedAt: number | null;
-  endsAt: number | null;
   roleRevealEndsAt: number | null;
   currentObstacle: Obstacle | null;
   winnerRole: MultiplayerRole | null;
@@ -117,14 +120,12 @@ export interface PublicMultiplayerRoom {
 export interface MultiplayerRoom {
   code: string;
   hostSocketId: string;
-  durationSeconds: number;
+  targetDistance: number;
+  headStart: number;
   phase: MultiplayerPhase;
   players: MultiplayerPlayerInternal[];
   gap: number;
-  initialGap: number;
-  maxGap: number;
   startedAt: number | null;
-  endsAt: number | null;
   roleRevealEndsAt: number | null;
   currentObstacle: Obstacle | null;
   nextObstacleAt: number;

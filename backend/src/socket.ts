@@ -79,12 +79,12 @@ function bindSessionHandlers(io: Server, socket: Socket) {
   });
 
   // ---- two player (LAN) ----------------------------------------------------
-  socket.on('multiplayer-create-room', ({ playerName, durationSeconds }: { playerName?: string; durationSeconds?: number }) => {
+  socket.on('multiplayer-create-room', ({ playerName, targetDistance }: { playerName?: string; targetDistance?: number }) => {
     const previous = multiplayer.getRoomBySocket(socket.id);
     if (previous) {
       socket.leave(previous.code);
     }
-    const room = multiplayer.createRoom(socket.id, playerName ?? 'Host', durationSeconds);
+    const room = multiplayer.createRoom(socket.id, playerName ?? 'Host', targetDistance);
     socket.join(room.code);
     broadcastRoom(io, room);
   });
@@ -99,8 +99,8 @@ function bindSessionHandlers(io: Server, socket: Socket) {
     broadcastRoom(io, result.room);
   });
 
-  socket.on('multiplayer-set-duration', ({ durationSeconds }: { durationSeconds: number }) => {
-    broadcastRoom(io, multiplayer.setDuration(socket.id, durationSeconds));
+  socket.on('multiplayer-set-target', ({ targetDistance }: { targetDistance: number }) => {
+    broadcastRoom(io, multiplayer.setTarget(socket.id, targetDistance));
   });
 
   socket.on('multiplayer-ready', ({ ready }: { ready: boolean }) => {
@@ -178,7 +178,7 @@ export function registerSocketHandlers(io: Server) {
     });
 
     // Multiplayer rooms: tick and stream active ones.
-    multiplayer.rooms_().forEach((room) => {
+    multiplayer.allRooms().forEach((room) => {
       const previousPhase = room.phase;
       multiplayer.tick(room, now);
       const becameFinished = previousPhase !== 'FINISHED' && room.phase === 'FINISHED';

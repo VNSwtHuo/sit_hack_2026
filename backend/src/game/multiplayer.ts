@@ -12,24 +12,24 @@ import { OBSTACLE_TYPES } from './constants.js';
 import { clamp, randomBetween } from './utils.js';
 
 // --- Tuning -----------------------------------------------------------------
-const INITIAL_GAP = 55;
-const MAX_GAP = 100;
+const HEAD_START_M = 20; // survivor's starting lead, in metres
+const FULL_SPEED_MPS = 8; // metres/second a player gains at full running speed
 const ROLE_REVEAL_MS = 3800;
-const SURVIVOR_PUSH = 17; // gap units/sec at full survivor running speed
-const ZOMBIE_PULL = 19; // gap units/sec at full zombie running speed
-const BASE_CHASE = 3.5; // baseline gap loss/sec — the zombie always creeps closer
-const OBSTACLE_BONUS = 8; // gap swing when a player nails an obstacle
-const MISS_PENALTY = 6; // gap swing when a player misses an obstacle
-const BOOST_BONUS = 12; // extra gap swing on a 3-combo brain-rot boost
+const OBSTACLE_BONUS_M = 6; // metres gained for clearing an obstacle
+// Metres lost for missing an obstacle. Applied to the misser's own distance,
+// so a zombie miss grows the gap (survivor pulls ahead) and a survivor miss
+// shrinks it (zombie closes in).
+const MISS_PENALTY_M = 12;
+const BOOST_BONUS_M = 10; // extra metres on a 3-combo brain-rot boost
 const BOOST_MS = 2600;
 const OBSTACLE_MIN_MS = 4200;
 const OBSTACLE_MAX_MS = 6800;
 const OBSTACLE_DURATION_MS = 3000;
 const MOTION_STALE_MS = 650;
 const PENALTY_VISUAL_MS = 1200;
-const MIN_DURATION = 30;
-const MAX_DURATION = 300;
-const DEFAULT_DURATION = 60;
+const MIN_TARGET_M = 200;
+const MAX_TARGET_M = 10000;
+const DEFAULT_TARGET_M = 1000;
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -43,26 +43,24 @@ export class MultiplayerManager {
     return code ? this.rooms.get(code) ?? null : null;
   }
 
-  rooms_(): MultiplayerRoom[] {
+  allRooms(): MultiplayerRoom[] {
     return [...this.rooms.values()];
   }
 
   // --- lobby ---------------------------------------------------------------
-  createRoom(socketId: string, name: string, durationSeconds?: number): MultiplayerRoom {
+  createRoom(socketId: string, name: string, targetDistance?: number): MultiplayerRoom {
     this.leave(socketId);
     const code = this.generateCode();
     const now = Date.now();
     const room: MultiplayerRoom = {
       code,
       hostSocketId: socketId,
-      durationSeconds: clampDuration(durationSeconds ?? DEFAULT_DURATION),
+      targetDistance: clampTarget(targetDistance ?? DEFAULT_TARGET_M),
+      headStart: HEAD_START_M,
       phase: 'LOBBY',
       players: [makePlayer(socketId, name || 'Host', true)],
-      gap: INITIAL_GAP,
-      initialGap: INITIAL_GAP,
-      maxGap: MAX_GAP,
+      gap: HEAD_START_M,
       startedAt: null,
-      endsAt: null,
       roleRevealEndsAt: null,
       currentObstacle: null,
       nextObstacleAt: 0,
@@ -101,12 +99,12 @@ export class MultiplayerManager {
     return { room };
   }
 
-  setDuration(socketId: string, durationSeconds: number): MultiplayerRoom | null {
+  setTarget(socketId: string, targetDistance: number): MultiplayerRoom | null {
     const room = this.getRoomBySocket(socketId);
     if (!room || room.hostSocketId !== socketId || room.phase !== 'LOBBY') {
       return null;
     }
-    room.durationSeconds = clampDuration(durationSeconds);
+    room.targetDistance = clampTarget(targetDistance);
     return room;
   }
 
@@ -140,6 +138,7 @@ export class MultiplayerManager {
     room.players.forEach((player, index) => {
       player.role = roles[index];
       player.speed = 0;
+      player.distance = 0;
       player.comboCount = 0;
       player.boostUntil = null;
       player.obstacleResolved = false;
@@ -151,9 +150,8 @@ export class MultiplayerManager {
 
     room.phase = 'ROLE_REVEAL';
     room.roleRevealEndsAt = now + ROLE_REVEAL_MS;
-    room.gap = room.initialGap;
+    room.gap = room.headStart;
     room.startedAt = null;
-    room.endsAt = null;
     room.currentObstacle = null;
     room.winnerRole = null;
     room.winnerSocketId = null;
@@ -206,24 +204,18 @@ export class MultiplayerManager {
 
     player.obstacleResolved = true;
     player.comboCount += 1;
-    this.shiftGap(room, player, OBSTACLE_BONUS);
+    player.distance = Math.max(0, player.distance + OBSTACLE_BONUS_M);
 
     if (player.comboCount > 0 && player.comboCount % 3 === 0) {
       player.boostUntil = Date.now() + BOOST_MS;
-      this.shiftGap(room, player, BOOST_BONUS);
+      player.distance += BOOST_BONUS_M;
     }
 
-    // If both players have cleared the obstacle, retire it early.
+    // If both players cleared the obstacle, retire it early.
     if (room.players.every((entry) => entry.obstacleResolved)) {
       room.currentObstacle = null;
       room.nextObstacleAt = Date.now() + randomBetween(OBSTACLE_MIN_MS, OBSTACLE_MAX_MS);
     }
-  }
-
-  /** Positive amount always helps the acting player's goal. */
-  private shiftGap(room: MultiplayerRoom, player: MultiplayerPlayerInternal, amount: number) {
-    room.gap += player.role === 'survivor' ? amount : -amount;
-    room.gap = clamp(room.gap, 0, room.maxGap);
   }
 
   tick(room: MultiplayerRoom, now: number) {
@@ -234,7 +226,6 @@ export class MultiplayerManager {
       if (room.roleRevealEndsAt && now >= room.roleRevealEndsAt) {
         room.phase = 'RUNNING';
         room.startedAt = now;
-        room.endsAt = now + room.durationSeconds * 1000;
         room.roleRevealEndsAt = null;
         room.nextObstacleAt = now + randomBetween(OBSTACLE_MIN_MS, OBSTACLE_MAX_MS);
         room.lastUpdate = now;
@@ -246,19 +237,18 @@ export class MultiplayerManager {
       return;
     }
 
-    const survivor = room.players.find((player) => player.role === 'survivor');
-    const zombie = room.players.find((player) => player.role === 'zombie');
-    const survivorSpeed = survivor && now - survivor.lastMotionAt < MOTION_STALE_MS ? survivor.speed : 0;
-    const zombieSpeed = zombie && now - zombie.lastMotionAt < MOTION_STALE_MS ? zombie.speed : 0;
-
-    room.gap +=
-      (survivorSpeed * SURVIVOR_PUSH - zombieSpeed * ZOMBIE_PULL - BASE_CHASE) * deltaSeconds;
+    // Both players accumulate distance from their running activity.
+    for (const player of room.players) {
+      const fresh = now - player.lastMotionAt < MOTION_STALE_MS;
+      const speed = fresh ? player.speed : 0;
+      player.distance += speed * FULL_SPEED_MPS * deltaSeconds;
+    }
 
     // Obstacle deadline: penalise whoever did not clear it, then retire it.
     if (room.currentObstacle && now >= room.currentObstacle.deadline) {
       for (const player of room.players) {
         if (!player.obstacleResolved) {
-          this.shiftGap(room, player, -MISS_PENALTY);
+          player.distance = Math.max(0, player.distance - MISS_PENALTY_M);
           player.obstaclePenaltyUntil = now + PENALTY_VISUAL_MS;
           player.comboCount = 0;
         }
@@ -271,12 +261,16 @@ export class MultiplayerManager {
       this.spawnObstacle(room, now);
     }
 
-    room.gap = clamp(room.gap, 0, room.maxGap);
+    const survivor = room.players.find((player) => player.role === 'survivor');
+    const zombie = room.players.find((player) => player.role === 'zombie');
+    const survivorDistance = survivor?.distance ?? 0;
+    const zombieDistance = zombie?.distance ?? 0;
+    room.gap = survivorDistance + room.headStart - zombieDistance;
 
     if (room.gap <= 0) {
       this.finish(room, 'zombie', 'caught');
-    } else if (room.endsAt && now >= room.endsAt) {
-      this.finish(room, 'survivor', 'timeout');
+    } else if (survivorDistance >= room.targetDistance) {
+      this.finish(room, 'survivor', 'reached');
     }
   }
 
@@ -348,7 +342,8 @@ export class MultiplayerManager {
     return {
       code: room.code,
       hostSocketId: room.hostSocketId,
-      durationSeconds: room.durationSeconds,
+      targetDistance: room.targetDistance,
+      headStart: room.headStart,
       phase: room.phase,
       players: room.players.map((player) => ({
         socketId: player.socketId,
@@ -363,12 +358,10 @@ export class MultiplayerManager {
         lastSixtySevenCount: player.lastSixtySevenCount,
         connected: player.connected,
         boostUntil: player.boostUntil,
+        distance: Math.max(0, Math.round(player.distance)),
       })),
       gap: Number(room.gap.toFixed(2)),
-      initialGap: room.initialGap,
-      maxGap: room.maxGap,
       startedAt: room.startedAt,
-      endsAt: room.endsAt,
       roleRevealEndsAt: room.roleRevealEndsAt,
       currentObstacle: room.currentObstacle,
       winnerRole: room.winnerRole,
@@ -404,14 +397,15 @@ function makePlayer(socketId: string, name: string, isHost: boolean): Multiplaye
     lastSixtySevenCount: 0,
     connected: true,
     boostUntil: null,
+    distance: 0,
     lastMotionAt: 0,
     comboCount: 0,
   };
 }
 
-function clampDuration(seconds: number): number {
-  if (!Number.isFinite(seconds)) {
-    return DEFAULT_DURATION;
+function clampTarget(meters: number): number {
+  if (!Number.isFinite(meters)) {
+    return DEFAULT_TARGET_M;
   }
-  return Math.round(clamp(seconds, MIN_DURATION, MAX_DURATION));
+  return Math.round(clamp(meters, MIN_TARGET_M, MAX_TARGET_M));
 }

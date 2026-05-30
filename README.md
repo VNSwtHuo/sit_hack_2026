@@ -68,10 +68,12 @@ One laptop runs the servers (the "host machine"); both laptops play in the brows
    The frontend automatically connects its Socket.IO client to `http://<same-host>:4000`,
    so no configuration is needed.
 
-4. One player clicks **Create room** and shares the 4-letter code. The other clicks
-   **Join room** and enters it. Both **Calibrate**; once both show **Ready**, the host
-   gets a **Start** button. Roles (zombie / survivor) are revealed, then the match runs:
-   the **survivor wins** if the timer runs out, the **zombie wins** by catching up first.
+4. The host sets a **target distance** (200–10,000 m), clicks **Create room** and shares
+   the 4-letter code. The other clicks **Join room** and enters it. Both **Calibrate**;
+   once both show **Ready**, the host gets a **Start** button. Roles (zombie / survivor)
+   are revealed, then the race runs: both players accumulate distance by running. The
+   survivor starts with a 20 m head start — the **survivor wins** by reaching the target
+   distance, the **zombie wins** by closing the gap to zero (catching up) first.
 
 > Both laptops need a webcam and must be on the same network. If a firewall blocks the
 > connection, allow inbound traffic on ports `5173` and `4000` on the host machine.

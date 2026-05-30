@@ -11,6 +11,7 @@
     "postinstall": "npm run install:all"
   },
   "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "concurrently": "^9.2.1"
   }
 }

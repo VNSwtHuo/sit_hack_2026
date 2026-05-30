@@ -23,7 +23,15 @@ import { useMultiplayerRoom } from "../motion/useMultiplayerRoom";
 import { usePoseTracker } from "../motion/usePoseTracker";
 
 const MOTION_SEND_INTERVAL_MS = 66;
-const DEFAULT_DURATION_SECONDS = 60;
+const DEFAULT_TARGET_DISTANCE = 1000;
+const MIN_TARGET_DISTANCE = 200;
+const MAX_TARGET_DISTANCE = 10000;
+
+const clampTarget = (value: number) =>
+  Math.min(
+    MAX_TARGET_DISTANCE,
+    Math.max(MIN_TARGET_DISTANCE, Math.round(value)),
+  );
 
 export function MultiplayerPage() {
   const {
@@ -33,7 +41,7 @@ export function MultiplayerPage() {
     error,
     createRoom,
     joinRoom,
-    setDuration,
+    setTarget,
     setReady,
     startRoom,
     sendMotion,
@@ -47,13 +55,12 @@ export function MultiplayerPage() {
     isRunning: cameraOn,
     error: cameraError,
     start,
+    stop,
   } = usePoseTracker();
 
   const [playerName, setPlayerName] = useState("Runner");
   const [joinCode, setJoinCode] = useState("");
-  const [durationSeconds, setDurationSeconds] = useState(
-    DEFAULT_DURATION_SECONDS,
-  );
+  const [targetDistance, setTargetDistance] = useState(DEFAULT_TARGET_DISTANCE);
   const [calibration, setCalibration] = useState<CalibrationState>(() =>
     createCalibrationState(),
   );
@@ -129,6 +136,13 @@ export function MultiplayerPage() {
     sendMotion(motion);
   }, [phase, calibration.profile, motion, sendMotion]);
 
+  // When the match ends, freeze the canvas on its last frame and close the camera.
+  useEffect(() => {
+    if (phase === "FINISHED") {
+      stop();
+    }
+  }, [phase, stop]);
+
   const startCalibration = useCallback(() => {
     void start();
     calibrationSamplesRef.current = [];
@@ -137,27 +151,26 @@ export function MultiplayerPage() {
   }, [start, setReady]);
 
   const handleCreate = useCallback(() => {
-    createRoom({ playerName, durationSeconds });
+    createRoom({ playerName, targetDistance: clampTarget(targetDistance) });
     void start();
-  }, [createRoom, playerName, durationSeconds, start]);
+  }, [createRoom, playerName, targetDistance, start]);
 
   const handleJoin = useCallback(() => {
     joinRoom({ roomCode: joinCode, playerName });
     void start();
   }, [joinRoom, joinCode, playerName, start]);
 
-  const handleDurationChange = (next: number) => {
-    const clamped = Math.min(300, Math.max(30, next));
-    setDurationSeconds(clamped);
+  const handleTargetChange = (next: number) => {
+    if (!Number.isFinite(next)) {
+      return;
+    }
+    const clamped = clampTarget(next);
+    setTargetDistance(clamped);
     if (isHost) {
-      setDuration(clamped);
+      setTarget(clamped);
     }
   };
 
-  const remainingSeconds =
-    room?.endsAt && phase === "RUNNING"
-      ? Math.max(0, Math.ceil((room.endsAt - serverNow) / 1000))
-      : (room?.durationSeconds ?? durationSeconds);
   const revealRemaining = room?.roleRevealEndsAt
     ? Math.max(0, room.roleRevealEndsAt - serverNow)
     : 0;
@@ -171,12 +184,12 @@ export function MultiplayerPage() {
         <LobbySetup
           playerName={playerName}
           joinCode={joinCode}
-          durationSeconds={durationSeconds}
+          targetDistance={targetDistance}
           connected={connected}
           error={error}
           onPlayerNameChange={setPlayerName}
           onJoinCodeChange={setJoinCode}
-          onDurationChange={handleDurationChange}
+          onTargetChange={handleTargetChange}
           onCreate={handleCreate}
           onJoin={handleJoin}
         />
@@ -187,14 +200,14 @@ export function MultiplayerPage() {
           self={self}
           isHost={isHost}
           bothReady={Boolean(bothReady)}
-          durationSeconds={room.durationSeconds}
+          targetDistance={room.targetDistance}
           calibration={calibration}
           cameraOn={cameraOn}
           confidence={confidence}
           cameraError={cameraError}
           error={error}
           onCalibrate={startCalibration}
-          onDurationChange={handleDurationChange}
+          onTargetChange={handleTargetChange}
           onStart={startRoom}
           onLeave={leaveRoom}
         />
@@ -206,7 +219,6 @@ export function MultiplayerPage() {
           opponent={opponent}
           role={role}
           serverNow={serverNow}
-          remainingSeconds={remainingSeconds}
           revealRemaining={revealRemaining}
           obstacle={activeObstacle}
           selfSpeed={motion.playerSpeed}
@@ -241,26 +253,50 @@ function LobbyBackground({ children }: { children: React.ReactNode }) {
   );
 }
 
+function TargetDistanceField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <Field
+      label={`Target distance (m) · ${MIN_TARGET_DISTANCE}–${MAX_TARGET_DISTANCE}`}
+    >
+      <input
+        type="number"
+        min={MIN_TARGET_DISTANCE}
+        max={MAX_TARGET_DISTANCE}
+        step={1}
+        value={value}
+        onChange={(event) => onChange(parseInt(event.target.value, 10))}
+        className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-3 text-base text-neutral-100 outline-none focus:border-[#17b978]"
+      />
+    </Field>
+  );
+}
+
 function LobbySetup({
   playerName,
   joinCode,
-  durationSeconds,
+  targetDistance,
   connected,
   error,
   onPlayerNameChange,
   onJoinCodeChange,
-  onDurationChange,
+  onTargetChange,
   onCreate,
   onJoin,
 }: {
   playerName: string;
   joinCode: string;
-  durationSeconds: number;
+  targetDistance: number;
   connected: boolean;
   error: string | null;
   onPlayerNameChange: (value: string) => void;
   onJoinCodeChange: (value: string) => void;
-  onDurationChange: (value: number) => void;
+  onTargetChange: (value: number) => void;
   onCreate: () => void;
   onJoin: () => void;
 }) {
@@ -299,19 +335,10 @@ function LobbySetup({
                 className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-3 text-base text-neutral-100 outline-none focus:border-[#17b978]"
               />
             </Field>
-            <Field label="Timer (seconds)">
-              <input
-                type="number"
-                min={30}
-                max={300}
-                step={15}
-                value={durationSeconds}
-                onChange={(event) =>
-                  onDurationChange(Number(event.target.value))
-                }
-                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-3 text-base text-neutral-100 outline-none focus:border-[#17b978]"
-              />
-            </Field>
+            <TargetDistanceField
+              value={targetDistance}
+              onChange={onTargetChange}
+            />
           </div>
           <button
             type="button"
@@ -390,14 +417,14 @@ function CalibrationLobby({
   self,
   isHost,
   bothReady,
-  durationSeconds,
+  targetDistance,
   calibration,
   cameraOn,
   confidence,
   cameraError,
   error,
   onCalibrate,
-  onDurationChange,
+  onTargetChange,
   onStart,
   onLeave,
 }: {
@@ -406,14 +433,14 @@ function CalibrationLobby({
   self: MultiplayerPlayer | undefined;
   isHost: boolean;
   bothReady: boolean;
-  durationSeconds: number;
+  targetDistance: number;
   calibration: CalibrationState;
   cameraOn: boolean;
   confidence: number;
   cameraError: string | null;
   error: string | null;
   onCalibrate: () => void;
-  onDurationChange: (value: number) => void;
+  onTargetChange: (value: number) => void;
   onStart: () => void;
   onLeave: () => void;
 }) {
@@ -440,7 +467,7 @@ function CalibrationLobby({
               <Copy size={18} className="text-[#17b978]" />
             </button>
             <p className="mt-2 text-xs uppercase tracking-widest text-neutral-500">
-              Share this code with the other player
+              Share this code with the other player · Target {targetDistance}m
             </p>
           </div>
 
@@ -460,19 +487,10 @@ function CalibrationLobby({
 
           {isHost ? (
             <div className="mt-5">
-              <Field label="Timer (seconds)">
-                <input
-                  type="number"
-                  min={30}
-                  max={300}
-                  step={15}
-                  value={durationSeconds}
-                  onChange={(event) =>
-                    onDurationChange(Number(event.target.value))
-                  }
-                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-3 text-base text-neutral-100 outline-none focus:border-[#17b978]"
-                />
-              </Field>
+              <TargetDistanceField
+                value={targetDistance}
+                onChange={onTargetChange}
+              />
             </div>
           ) : null}
 
@@ -591,7 +609,6 @@ function GameStage({
   opponent,
   role,
   serverNow,
-  remainingSeconds,
   revealRemaining,
   obstacle,
   selfSpeed,
@@ -604,7 +621,6 @@ function GameStage({
   opponent: MultiplayerPlayer | undefined;
   role: MultiplayerRole | null;
   serverNow: number;
-  remainingSeconds: number;
   revealRemaining: number;
   obstacle: Obstacle | null;
   selfSpeed: number;
@@ -613,14 +629,27 @@ function GameStage({
 }) {
   const phase = room.phase;
   const isSurvivor = role === "survivor";
-  const gapPct = Math.max(0, Math.min(100, (room.gap / room.maxGap) * 100));
+  const headStart = room.headStart;
+  const gap = room.gap;
+  const target = room.targetDistance;
+  const survivorDistance =
+    room.players.find((player) => player.role === "survivor")?.distance ?? 0;
+  const raceProgress = Math.max(0, Math.min(1, survivorDistance / target));
+
+  // Chase bar: zombie fixed at left until it closes the gap, then it slides
+  // toward the survivor (fixed at the right edge). gap >= headStart = full bar.
+  const zombiePos = Math.max(0, Math.min(100, (1 - gap / headStart) * 100));
+  const gapRatio = Math.max(0, Math.min(1, gap / headStart));
+  const gapColor =
+    gapRatio > 0.55 ? "#84cc16" : gapRatio > 0.28 ? "#facc15" : "#ef4444";
+  // For the survivor's horde overlay (0 = caught, 100 = safe head-start away).
+  const hordeDistance = Math.max(0, Math.min(100, (gap / headStart) * 100));
+
   const boostActive = Boolean(self?.boostUntil && self.boostUntil > serverNow);
   const penaltyActive = Boolean(
     self?.obstaclePenaltyUntil && self.obstaclePenaltyUntil > serverNow,
   );
   const youWon = self?.socketId === room.winnerSocketId;
-  const distanceColor =
-    gapPct > 55 ? "#84cc16" : gapPct > 28 ? "#facc15" : "#ef4444";
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
@@ -636,7 +665,7 @@ function GameStage({
           zombie sees no horde — they ARE the zombie. */}
       {phase === "RUNNING" && isSurvivor ? (
         <ZombieLayer
-          zombieDistance={gapPct}
+          zombieDistance={hordeDistance}
           boostActive={boostActive}
           zombieFace={customizations.zombieFace}
           headAvatar={customizations.headAvatar}
@@ -687,52 +716,71 @@ function GameStage({
               </div>
             </div>
 
-            <div className="flex items-start gap-2">
-              <div className="rounded-xl bg-neutral-950/70 px-4 py-3 text-right backdrop-blur">
-                <div className="text-[0.65rem] font-black uppercase tracking-widest text-neutral-500">
-                  Time left
-                </div>
-                <div className="mt-1 font-mono text-4xl font-black text-orange-200">
-                  {remainingSeconds}s
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onLeave}
-                className="grid h-11 w-11 place-items-center rounded-xl bg-neutral-950/70 text-neutral-200 backdrop-blur hover:bg-neutral-800"
-                title="Leave"
-              >
-                <LogOut size={18} />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onLeave}
+              className="grid h-11 w-11 place-items-center rounded-xl bg-neutral-950/70 text-neutral-200 backdrop-blur hover:bg-neutral-800"
+              title="Leave"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 p-4">
-            <div className="flex items-center gap-3">
+          <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 p-4">
+            {/* Chase bar — zombie on the left, survivor fixed on the right */}
+            <div className="rounded-xl bg-neutral-950/60 px-4 py-3 backdrop-blur">
+              <div className="mb-2 flex items-center justify-between text-xs font-black uppercase tracking-widest text-neutral-400">
+                <span>🧟 Zombie</span>
+                <span className="font-mono text-neutral-200">
+                  {`${Math.max(0, Math.round(gap))} m gap`}
+                </span>
+                <span>Survivor 🏃</span>
+              </div>
+              <div className="relative h-7">
+                <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-full bg-neutral-800/80">
+                  <div
+                    className="absolute inset-y-0 right-0 rounded-full transition-[left] duration-200 ease-out"
+                    style={{ left: `${zombiePos}%`, backgroundColor: gapColor }}
+                  />
+                </div>
+                <span
+                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-xl transition-[left] duration-200 ease-out"
+                  style={{ left: `${zombiePos}%` }}
+                >
+                  🧟
+                </span>
+                <span className="absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 text-xl">
+                  🏃
+                </span>
+              </div>
+            </div>
+
+            {/* Race progress — same meter style as single player */}
+            <div className="flex items-center gap-3 rounded-xl bg-neutral-950/60 px-4 py-3 backdrop-blur">
               <span className="flex w-40 items-center gap-2 text-xs uppercase tracking-widest text-neutral-400">
-                <span>🧟</span>
-                {isSurvivor ? "Zombie distance" : "Distance to prey"}
+                <span>🏁</span>
+                Race progress
               </span>
               <div className="h-3 flex-1 overflow-hidden rounded-full bg-neutral-800/80">
                 <div
-                  className="h-full rounded-full transition-[width] duration-200 ease-out"
-                  style={{
-                    width: `${gapPct}%`,
-                    backgroundColor: distanceColor,
-                  }}
+                  className="h-full rounded-full bg-[#38bdf8] transition-[width] duration-200 ease-out"
+                  style={{ width: `${raceProgress * 100}%` }}
                 />
               </div>
-              <span className="w-12 text-right font-mono text-xs text-neutral-300">
-                {gapPct.toFixed(0)}m
+              <span className="w-24 text-right font-mono text-xs text-neutral-300">
+                {Math.round(survivorDistance)}/{target}m
               </span>
             </div>
+
             {penaltyActive ? (
               <p className="text-center text-xs font-black uppercase tracking-[0.3em] text-red-300">
                 Missed obstacle!
               </p>
             ) : (
               <p className="text-center text-xs uppercase tracking-[0.3em] text-neutral-500">
-                {isSurvivor ? "Run to stay ahead" : "Run to catch the survivor"}{" "}
+                {isSurvivor
+                  ? "Run to reach the target"
+                  : "Run to catch the survivor"}{" "}
                 · speed {selfSpeed.toFixed(2)}
               </p>
             )}
@@ -768,8 +816,8 @@ function GameStage({
               </div>
               <p className="max-w-sm text-sm uppercase tracking-widest text-neutral-300">
                 {isSurvivor
-                  ? "Outrun the zombie until the timer ends"
-                  : "Catch the survivor before time runs out"}
+                  ? `Reach ${target}m before the zombie catches you`
+                  : `Catch the survivor before they reach ${target}m`}
               </p>
               <div className="font-mono text-2xl font-black text-neutral-500">
                 {(revealRemaining / 1000).toFixed(1)}
@@ -794,12 +842,12 @@ function GameStage({
             <p className="text-sm uppercase tracking-widest text-neutral-300">
               {room.finishReason === "caught"
                 ? "The zombie caught the survivor"
-                : room.finishReason === "timeout"
-                  ? "The survivor outlasted the timer"
+                : room.finishReason === "reached"
+                  ? `The survivor reached ${target}m`
                   : "Opponent left the game"}
             </p>
             <div className="inline-flex rounded-lg border border-neutral-700 bg-neutral-900/90 px-4 py-3">
-              <span className="text-xs font-black uppercase tracking-widest text-neutral-500">
+              <span className="text-md font-black uppercase tracking-widest text-neutral-500">
                 Winner&nbsp;
               </span>
               <span className="font-black uppercase text-orange-200">

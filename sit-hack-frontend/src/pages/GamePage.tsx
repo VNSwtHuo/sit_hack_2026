@@ -43,6 +43,7 @@ export function GamePage() {
     cameraOn,
     cameraError,
     startCamera,
+    stopCamera,
     calibration,
     beginCalibrationFlow,
     resetCalibration,
@@ -170,9 +171,10 @@ export function GamePage() {
     stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
     clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
     recordingObstacleIdRef.current = null;
+    void startCamera(); // reopen the camera that closed on game over
     restart();
     confirmCalibration();
-  }, [restart, confirmCalibration]);
+  }, [restart, confirmCalibration, startCamera]);
 
   const handleMenu = useCallback(() => {
     setFaceSnapshot(null);
@@ -194,6 +196,15 @@ export function GamePage() {
       setFaceSnapshot(snapshot);
     }
   }, [gs, faceSnapshot, canvasRef, landmarks]);
+
+  // On game over, freeze the canvas on its last frame and close the camera.
+  // (This effect runs after the face-capture effect above, so the snapshot is
+  // taken from the still-live canvas before the camera stops.)
+  useEffect(() => {
+    if (gs === "GAME_OVER") {
+      stopCamera();
+    }
+  }, [gs, stopCamera]);
 
   useEffect(() => {
     if (showLanding && musicOn) {

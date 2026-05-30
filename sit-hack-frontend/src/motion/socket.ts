@@ -20,9 +20,9 @@ export interface ClientToServerEvents {
   'motion-update': (payload: MotionPayload) => void;
   'obstacle-result': (payload: { obstacleId: string; success: boolean }) => void;
   restart: () => void;
-  'multiplayer-create-room': (payload: { playerName?: string; durationSeconds?: number }) => void;
+  'multiplayer-create-room': (payload: { playerName?: string; targetDistance?: number }) => void;
   'multiplayer-join-room': (payload: { roomCode?: string; playerName?: string }) => void;
-  'multiplayer-set-duration': (payload: { durationSeconds: number }) => void;
+  'multiplayer-set-target': (payload: { targetDistance: number }) => void;
   'multiplayer-ready': (payload: { ready: boolean }) => void;
   'multiplayer-start': () => void;
   'multiplayer-motion-update': (payload: MotionPayload) => void;

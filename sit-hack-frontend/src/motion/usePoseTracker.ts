@@ -279,10 +279,20 @@ export function usePoseTracker() {
   }, [drawResults]);
 
   const stop = useCallback(() => {
+    // Stop the frame loop first so the canvas freezes on its last frame, then
+    // release the webcam stream so the camera (and its indicator light) closes.
     cameraRef.current?.stop();
     poseRef.current?.close();
     cameraRef.current = null;
     poseRef.current = null;
+
+    const video = videoRef.current;
+    const stream = (video?.srcObject as MediaStream | null) ?? null;
+    stream?.getTracks().forEach((track) => track.stop());
+    if (video) {
+      video.srcObject = null;
+    }
+
     setIsRunning(false);
   }, []);
 
