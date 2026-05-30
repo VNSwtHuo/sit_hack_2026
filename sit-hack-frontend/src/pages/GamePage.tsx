@@ -1,5 +1,11 @@
 import { AnimatePresence } from "framer-motion";
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import { Hud } from "../components/Hud";
 import { Landing } from "../components/Landing";
 import { ObstaclePrompt } from "../components/ObstaclePrompt";
@@ -48,6 +54,17 @@ export function GamePage() {
   const [zombieFace, setZombieFace] = useState<string | null>(null);
   const [headAvatar, setHeadAvatar] = useState<string | null>(null);
   const gameMusicRef = useRef<HTMLAudioElement | null>(null);
+
+  // "67" instant-replay recording state. We capture the webcam canvas while a
+  // SIX_SEVEN obstacle is active and surface the clip on the game-over screen.
+  const [sixtySevenReplayUrl, setSixtySevenReplayUrl] = useState<string | null>(
+    null,
+  );
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const replayChunksRef = useRef<Blob[]>([]);
+  const recordingObstacleIdRef = useRef<string | null>(null);
+  const replayStopTimerRef = useRef<number | null>(null);
+  const replayUrlRef = useRef<string | null>(null);
 
   const gs = gameState?.gameState ?? "MENU";
   const boostActive = Boolean(
@@ -98,12 +115,18 @@ export function GamePage() {
   // Replay reuses the existing calibration profile and jumps straight to the countdown.
   const handlePlayAgain = useCallback(() => {
     setFaceSnapshot(null);
+    stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+    clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
+    recordingObstacleIdRef.current = null;
     restart();
     confirmCalibration();
   }, [restart, confirmCalibration]);
 
   const handleMenu = useCallback(() => {
     setFaceSnapshot(null);
+    stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+    clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
+    recordingObstacleIdRef.current = null;
     restart();
     resetCalibration();
     setWantsCalibration(false);
@@ -141,6 +164,40 @@ export function GamePage() {
       music.currentTime = 0;
     }
   }, [gs]);
+
+  // Record a short clip of the player whenever a "67" obstacle is on screen.
+  useEffect(() => {
+    const obstacle = gameState?.currentObstacle;
+    const isSixtySevenActive =
+      gs === "RUNNING" && obstacle?.type === "SIX_SEVEN";
+
+    if (isSixtySevenActive && obstacle.id !== recordingObstacleIdRef.current) {
+      stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+      startSixtySevenReplayRecording(
+        canvasRef.current,
+        obstacle.id,
+        recorderRef,
+        replayChunksRef,
+        recordingObstacleIdRef,
+        replayStopTimerRef,
+        replayUrlRef,
+        setSixtySevenReplayUrl,
+      );
+      return;
+    }
+
+    if (!isSixtySevenActive && recorderRef.current) {
+      stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+    }
+  }, [gs, gameState?.currentObstacle, canvasRef]);
+
+  useEffect(() => {
+    return () => {
+      stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+      clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
+      gameMusicRef.current?.pause();
+    };
+  }, []);
 
   const countdown =
     gameState?.countdownEndsAt && gameState.countdownEndsAt > now
@@ -243,7 +300,7 @@ export function GamePage() {
                 score={gameState.score}
                 survivalTime={gameState.survivalTime}
                 faceSnapshot={faceSnapshot}
-                sixtySevenReplayUrl={null}
+                sixtySevenReplayUrl={sixtySevenReplayUrl}
                 onPlayAgain={handlePlayAgain}
                 onMenu={handleMenu}
               />
@@ -323,6 +380,129 @@ function unlockGameMusic(musicRef: MutableRefObject<HTMLAudioElement | null>) {
     .catch(() => {
       music.volume = previousVolume;
     });
+}
+
+const MAX_REPLAY_MS = 6000;
+
+function pickReplayMimeType() {
+  if (
+    typeof MediaRecorder === "undefined" ||
+    typeof MediaRecorder.isTypeSupported !== "function"
+  ) {
+    return undefined;
+  }
+  const candidates = [
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm",
+    "video/mp4",
+  ];
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type));
+}
+
+function startSixtySevenReplayRecording(
+  canvas: HTMLCanvasElement | null,
+  obstacleId: string,
+  recorderRef: MutableRefObject<MediaRecorder | null>,
+  replayChunksRef: MutableRefObject<Blob[]>,
+  recordingObstacleIdRef: MutableRefObject<string | null>,
+  replayStopTimerRef: MutableRefObject<number | null>,
+  replayUrlRef: MutableRefObject<string | null>,
+  setSixtySevenReplayUrl: (url: string | null) => void,
+) {
+  if (
+    !canvas ||
+    typeof canvas.captureStream !== "function" ||
+    typeof MediaRecorder === "undefined"
+  ) {
+    return;
+  }
+
+  let stream: MediaStream;
+  try {
+    stream = canvas.captureStream(30);
+  } catch {
+    return;
+  }
+
+  const mimeType = pickReplayMimeType();
+  let recorder: MediaRecorder;
+  try {
+    recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+  } catch {
+    return;
+  }
+
+  replayChunksRef.current = [];
+  recordingObstacleIdRef.current = obstacleId;
+  recorderRef.current = recorder;
+
+  recorder.ondataavailable = (event) => {
+    if (event.data && event.data.size > 0) {
+      replayChunksRef.current.push(event.data);
+    }
+  };
+
+  recorder.onstop = () => {
+    const chunks = replayChunksRef.current;
+    replayChunksRef.current = [];
+    if (chunks.length === 0) {
+      return;
+    }
+    const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+    const url = URL.createObjectURL(blob);
+    if (replayUrlRef.current) {
+      URL.revokeObjectURL(replayUrlRef.current);
+    }
+    replayUrlRef.current = url;
+    setSixtySevenReplayUrl(url);
+  };
+
+  try {
+    recorder.start();
+  } catch {
+    recorderRef.current = null;
+    recordingObstacleIdRef.current = null;
+    return;
+  }
+
+  // Safety cap so a lingering obstacle never records indefinitely.
+  replayStopTimerRef.current = window.setTimeout(() => {
+    stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
+  }, MAX_REPLAY_MS);
+}
+
+function stopSixtySevenReplayRecording(
+  recorderRef: MutableRefObject<MediaRecorder | null>,
+  replayStopTimerRef: MutableRefObject<number | null>,
+) {
+  if (replayStopTimerRef.current !== null) {
+    window.clearTimeout(replayStopTimerRef.current);
+    replayStopTimerRef.current = null;
+  }
+
+  const recorder = recorderRef.current;
+  recorderRef.current = null;
+  if (recorder && recorder.state !== "inactive") {
+    try {
+      recorder.stop(); // fires onstop -> builds the replay blob URL
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function clearReplayUrl(
+  setSixtySevenReplayUrl: (url: string | null) => void,
+  replayUrlRef: MutableRefObject<string | null>,
+) {
+  if (replayUrlRef.current) {
+    URL.revokeObjectURL(replayUrlRef.current);
+    replayUrlRef.current = null;
+  }
+  setSixtySevenReplayUrl(null);
 }
 
 function getExpandedBounds(

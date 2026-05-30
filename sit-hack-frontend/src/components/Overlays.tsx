@@ -3,8 +3,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 function Backdrop({ children }: { children: ReactNode }) {
   return (
-    <div className="absolute inset-0 z-20 grid place-items-center bg-neutral-950/75 px-6 text-center backdrop-blur-sm">
-      {children}
+    <div className="absolute inset-0 z-20 overflow-y-auto bg-neutral-950/75 backdrop-blur-sm">
+      <div className="flex min-h-full items-center justify-center px-6 py-8 text-center">
+        {children}
+      </div>
     </div>
   );
 }
@@ -191,13 +193,13 @@ export function GameOverOverlay({
           presentation.
         </p>
         {sixtySevenReplayUrl ? (
-          <div className="w-full rounded-xl border border-pink-400/50 bg-neutral-950/80 p-4 text-left">
+          <div className="mx-auto w-full max-w-md rounded-xl border border-pink-400/50 bg-neutral-950/80 p-3 text-left">
             <div className="mb-2 text-xs font-black uppercase tracking-widest text-pink-300">
               67 instant replay
             </div>
             <video
               src={sixtySevenReplayUrl}
-              className="aspect-video max-h-[46vh] w-full rounded-lg bg-black object-cover"
+              className="aspect-video max-h-[32vh] w-full rounded-lg bg-black object-contain"
               controls
               autoPlay
               muted
