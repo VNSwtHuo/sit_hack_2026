@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 function Backdrop({ children }: { children: ReactNode }) {
   return (
@@ -104,12 +104,14 @@ export function GameOverOverlay({
   score,
   survivalTime,
   faceSnapshot,
+  sixtySevenReplayUrl,
   onPlayAgain,
   onMenu,
 }: {
   score: number;
   survivalTime: number;
   faceSnapshot: string | null;
+  sixtySevenReplayUrl: string | null;
   onPlayAgain: () => void;
   onMenu: () => void;
 }) {
@@ -118,7 +120,7 @@ export function GameOverOverlay({
       <motion.div
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="flex w-full max-w-md flex-col items-center gap-5"
+        className="flex w-full max-w-3xl flex-col items-center gap-5"
       >
         {faceSnapshot ? (
           <img
@@ -135,6 +137,20 @@ export function GameOverOverlay({
         <p className="max-w-sm text-sm text-neutral-300">
           You got eaten alive by zombie... honestly, five-star meal presentation.
         </p>
+        {sixtySevenReplayUrl ? (
+          <div className="w-full rounded-xl border border-pink-400/50 bg-neutral-950/80 p-4 text-left">
+            <div className="mb-2 text-xs font-black uppercase tracking-widest text-pink-300">67 instant replay</div>
+            <video
+              src={sixtySevenReplayUrl}
+              className="aspect-video max-h-[46vh] w-full rounded-lg bg-black object-cover"
+              controls
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          </div>
+        ) : null}
         <div className="grid w-full grid-cols-2 gap-3">
           <Stat label="Final score" value={Math.round(score).toString()} />
           <Stat label="Survived" value={`${survivalTime.toFixed(1)}s`} />
@@ -157,6 +173,52 @@ export function GameOverOverlay({
         </div>
       </motion.div>
     </Backdrop>
+  );
+}
+
+const COMBO_MESSAGES: Array<{ combo: number; message: string; subtext: string }> = [
+  { combo: 10, message: 'THE ZOMBIES ARE FILING A COMPLAINT', subtext: 'Unfair movement detected' },
+  { combo: 7, message: 'BRAINROT MODE', subtext: 'Absolutely unreasonable behavior' },
+  { combo: 5, message: 'ABSOLUTE CINEMA', subtext: 'The horde is watching in HD' },
+  { combo: 3, message: 'COOKING', subtext: 'Keep the streak alive' },
+];
+
+export function ComboAnnouncer({ comboCount }: { comboCount: number }) {
+  const [announcement, setAnnouncement] = useState<{ combo: number; message: string; subtext: string } | null>(null);
+  const lastAnnouncedComboRef = useRef(0);
+
+  useEffect(() => {
+    const nextAnnouncement = COMBO_MESSAGES.find(({ combo }) => comboCount >= combo && lastAnnouncedComboRef.current < combo);
+    if (!nextAnnouncement) {
+      if (comboCount === 0) {
+        lastAnnouncedComboRef.current = 0;
+      }
+      return;
+    }
+
+    lastAnnouncedComboRef.current = nextAnnouncement.combo;
+    setAnnouncement(nextAnnouncement);
+    const id = window.setTimeout(() => setAnnouncement(null), 1600);
+    return () => window.clearTimeout(id);
+  }, [comboCount]);
+
+  if (!announcement) {
+    return null;
+  }
+
+  return (
+    <motion.div
+      key={announcement.combo}
+      initial={{ scale: 0.65, opacity: 0, y: 24 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{ scale: 1.2, opacity: 0, y: -16 }}
+      transition={{ type: 'spring', stiffness: 340, damping: 20 }}
+      className="pointer-events-none absolute left-1/2 top-[18%] z-30 w-[min(92vw,34rem)] -translate-x-1/2 rounded-2xl border-4 border-lime-300 bg-neutral-950/80 px-6 py-4 text-center shadow-[0_0_45px_rgba(132,204,22,0.45)] backdrop-blur"
+    >
+      <div className="text-xs font-black uppercase tracking-[0.35em] text-lime-300">Combo x{comboCount}</div>
+      <div className="mt-1 text-2xl font-black uppercase tracking-widest text-neutral-100 sm:text-4xl">{announcement.message}</div>
+      <div className="mt-1 text-xs uppercase tracking-widest text-neutral-400">{announcement.subtext}</div>
+    </motion.div>
   );
 }
 

@@ -13,7 +13,9 @@ const SEND_HISTORY_SIZE = 4;
 const KNEE_SPEED_DEADZONE = 0.18;
 const KNEE_SPEED_FULL_RUN = 1.25;
 const MIN_KNEE_VERTICAL_RANGE = 0.035;
-const SIXTY_SEVEN_ALTERNATIONS_REQUIRED = 3;
+const SIXTY_SEVEN_ALTERNATIONS_REQUIRED = 10;
+const JUMP_HEIGHT_MULTIPLIER = 0.7;
+const JUMP_UPWARD_VELOCITY_MULTIPLIER = 0.55;
 
 interface MotionFrame {
   leftKneeRelativeY: number;
@@ -71,7 +73,7 @@ export function useMotionDetection(landmarks: PoseLandmark[], calibration: Calib
     const playerSpeed = smoothSpeedRef.current.reduce((sum, value) => sum + value, 0) / smoothSpeedRef.current.length;
     const isRunning = playerSpeed > 0.16;
     const lane = detectLane(sample.centerX, calibration);
-    const jumpDetected = detectJump(nextFrame.torsoY, calibration, now, jumpingRef, jumpCooldownRef);
+    const jumpDetected = detectJump(framesRef.current, calibration, now, jumpingRef, jumpCooldownRef);
     updateSixtySeven(leftWrist.y, rightWrist.y, wristPhaseRef, wristAlternationCountRef, sixtySevenCountRef);
 
     setMotion({
@@ -133,20 +135,31 @@ function detectLane(centerX: number, calibration: CalibrationProfile) {
 }
 
 function detectJump(
-  torsoY: number,
+  frames: MotionFrame[],
   calibration: CalibrationProfile,
   now: number,
   jumpingRef: MutableRefObject<boolean>,
   jumpCooldownRef: MutableRefObject<number>,
 ) {
+  const current = frames.at(-1);
+  const previous = frames.at(-2);
+  if (!current) {
+    return false;
+  }
+
+  const torsoY = current.torsoY;
   const upwardOffset = calibration.centerY - torsoY;
+  const deltaSeconds = previous ? Math.max(0.001, (current.time - previous.time) / 1000) : 0;
+  const upwardVelocity = previous ? (previous.torsoY - current.torsoY) / deltaSeconds : 0;
+  const heightTriggered = upwardOffset > calibration.jumpThreshold * JUMP_HEIGHT_MULTIPLIER;
+  const velocityTriggered = upwardVelocity > calibration.bodyScale * JUMP_UPWARD_VELOCITY_MULTIPLIER;
   const landed = upwardOffset < calibration.jumpThreshold * 0.35;
 
   if (jumpingRef.current && landed) {
     jumpingRef.current = false;
   }
 
-  if (!jumpingRef.current && now > jumpCooldownRef.current && upwardOffset > calibration.jumpThreshold) {
+  if (!jumpingRef.current && now > jumpCooldownRef.current && (heightTriggered || velocityTriggered)) {
     jumpingRef.current = true;
     jumpCooldownRef.current = now + 650;
     return true;
