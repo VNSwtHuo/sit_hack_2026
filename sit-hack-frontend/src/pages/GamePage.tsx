@@ -6,6 +6,7 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { Hud } from "../components/Hud";
 import { Landing } from "../components/Landing";
 import { ObstaclePrompt } from "../components/ObstaclePrompt";
@@ -27,6 +28,7 @@ const GAME_MUSIC_URL = "/circuit-bloodrun.mp3";
 const LANDING_MUSIC_URL = landingMusicUrl;
 
 export function GamePage() {
+  const navigate = useNavigate();
   const game = useZombieGame();
   const {
     videoRef,
@@ -274,6 +276,7 @@ export function GamePage() {
         <Landing
           connected={connected}
           onStart={handleStart}
+          onMultiplayer={() => navigate("/multiplayer")}
           musicOn={musicOn}
           onToggleMusic={handleToggleMusic}
           zombieFace={zombieFace}

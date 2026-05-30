@@ -201,6 +201,12 @@ export function usePoseTracker() {
     }
 
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error(
+          "Camera access requires localhost, HTTPS, or a browser setting that treats this LAN URL as secure.",
+        );
+      }
+
       await loadMediaPipeScripts();
 
       if (!window.Pose || !window.Camera) {

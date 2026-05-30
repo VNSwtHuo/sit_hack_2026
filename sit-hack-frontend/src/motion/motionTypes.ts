@@ -2,6 +2,8 @@ export type Lane = 'left' | 'center' | 'right';
 export type GameState = 'MENU' | 'CALIBRATION' | 'COUNTDOWN' | 'RUNNING' | 'PAUSED' | 'GAME_OVER';
 export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
 export type ObstacleType = 'JUMP' | 'DUCK' | 'DODGE_LEFT' | 'DODGE_RIGHT' | 'SIX_SEVEN';
+export type MultiplayerRole = 'zombie' | 'survivor';
+export type MultiplayerPhase = 'LOBBY' | 'ROLE_REVEAL' | 'RUNNING' | 'FINISHED';
 
 export interface PoseLandmark {
   x: number;
@@ -66,6 +68,33 @@ export interface PublicGameState {
   score: number;
   countdownEndsAt: number | null;
   boostUntil: number | null;
+}
+
+export interface MultiplayerPlayer {
+  socketId: string;
+  name: string;
+  isHost: boolean;
+  ready: boolean;
+  role: MultiplayerRole | null;
+  speed: number;
+  connected: boolean;
+}
+
+export interface PublicMultiplayerRoom {
+  code: string;
+  hostSocketId: string;
+  durationSeconds: number;
+  phase: MultiplayerPhase;
+  players: MultiplayerPlayer[];
+  gap: number;
+  initialGap: number;
+  maxGap: number;
+  startedAt: number | null;
+  endsAt: number | null;
+  roleRevealEndsAt: number | null;
+  winnerRole: MultiplayerRole | null;
+  winnerSocketId: string | null;
+  finishReason: 'caught' | 'timeout' | 'abandoned' | null;
 }
 
 export const POSE = {
