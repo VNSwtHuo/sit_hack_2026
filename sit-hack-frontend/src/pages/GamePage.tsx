@@ -42,6 +42,9 @@ export function GamePage() {
 
   const [wantsCalibration, setWantsCalibration] = useState(false);
   const [faceSnapshot, setFaceSnapshot] = useState<string | null>(null);
+  // Player customizations chosen on the landing screen.
+  const [zombieFace, setZombieFace] = useState<string | null>(null);
+  const [headAvatar, setHeadAvatar] = useState<string | null>(null);
 
   const gs = gameState?.gameState ?? "MENU";
   const boostActive = Boolean(
@@ -125,7 +128,14 @@ export function GamePage() {
       <video ref={videoRef} className="hidden" playsInline muted />
 
       {showLanding ? (
-        <Landing connected={connected} onStart={handleStart} />
+        <Landing
+          connected={connected}
+          onStart={handleStart}
+          zombieFace={zombieFace}
+          headAvatar={headAvatar}
+          onZombieFaceChange={setZombieFace}
+          onHeadAvatarChange={setHeadAvatar}
+        />
       ) : (
         <div className="relative h-screen w-screen overflow-hidden bg-black">
           <div className="relative h-full w-full overflow-hidden">
@@ -140,6 +150,8 @@ export function GamePage() {
               <ZombieLayer
                 zombieDistance={gameState.zombieDistance}
                 boostActive={boostActive}
+                zombieFace={zombieFace}
+                headAvatar={headAvatar}
               />
             ) : null}
 
