@@ -14,6 +14,12 @@ export const OBSTACLE_META: Record<ObstacleType, ObstacleMeta> = {
     emoji: '⬆️',
     accent: '#facc15',
   },
+  DUCK: {
+    label: 'DUCK!',
+    hint: 'Drop your torso low',
+    emoji: '⬇️',
+    accent: '#fb923c',
+  },
   DODGE_LEFT: {
     label: 'DODGE RIGHT',
     hint: 'Lean to your right',

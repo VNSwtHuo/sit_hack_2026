@@ -20,9 +20,11 @@ import {
 } from "../components/Overlays";
 import { useZombieGame } from "../game/useZombieGame";
 import { POSE, type PoseLandmark } from "../motion/motionTypes";
+import landingMusicUrl from "../../landing_page.mp3?url";
 
 const CALIBRATION_CONFIDENCE_GATE = 0.8;
 const GAME_MUSIC_URL = "/circuit-bloodrun.mp3";
+const LANDING_MUSIC_URL = landingMusicUrl;
 
 export function GamePage() {
   const game = useZombieGame();
@@ -54,6 +56,7 @@ export function GamePage() {
   const [headAvatar, setHeadAvatar] = useState<string | null>(null);
   // Music preference, toggled from the landing screen.
   const [musicOn, setMusicOn] = useState(true);
+  const landingMusicRef = useRef<HTMLAudioElement | null>(null);
   const gameMusicRef = useRef<HTMLAudioElement | null>(null);
 
   // "67" instant-replay recording state. We capture the webcam canvas while a
@@ -68,6 +71,7 @@ export function GamePage() {
   const replayUrlRef = useRef<string | null>(null);
 
   const gs = gameState?.gameState ?? "MENU";
+  const showLanding = gs === "MENU" && !wantsCalibration;
   const boostActive = Boolean(
     gameState?.boostUntil && gameState.boostUntil > now,
   );
@@ -87,6 +91,29 @@ export function GamePage() {
     setWantsCalibration(false);
     beginCalibrationFlow();
   }, [musicOn, beginCalibrationFlow]);
+
+  const handleToggleMusic = useCallback(() => {
+    const nextMusicOn = !musicOn;
+    setMusicOn(nextMusicOn);
+
+    if (!nextMusicOn) {
+      pauseAudioRef(landingMusicRef);
+      pauseAudioRef(gameMusicRef);
+      return;
+    }
+
+    if (showLanding) {
+      playLandingMusic(landingMusicRef);
+      return;
+    }
+
+    if (gs === "RUNNING") {
+      const music = ensureGameMusic(gameMusicRef);
+      void music.play().catch(() => {
+        // Ignore autoplay blocks; gameplay clicks will keep retrying.
+      });
+    }
+  }, [gs, musicOn, showLanding]);
 
   // Auto-begin calibration once the camera is up and the player is in frame.
   useEffect(() => {
@@ -149,6 +176,37 @@ export function GamePage() {
   }, [gs, faceSnapshot, canvasRef, landmarks]);
 
   useEffect(() => {
+    if (showLanding && musicOn) {
+      playLandingMusic(landingMusicRef);
+      return;
+    }
+
+    const music = landingMusicRef.current;
+    if (music) {
+      music.pause();
+      music.currentTime = 0;
+    }
+  }, [showLanding, musicOn]);
+
+  useEffect(() => {
+    if (!showLanding || !musicOn) {
+      return;
+    }
+
+    const playOnInteraction = () => {
+      playLandingMusic(landingMusicRef);
+    };
+
+    window.addEventListener("pointerdown", playOnInteraction);
+    window.addEventListener("keydown", playOnInteraction);
+
+    return () => {
+      window.removeEventListener("pointerdown", playOnInteraction);
+      window.removeEventListener("keydown", playOnInteraction);
+    };
+  }, [showLanding, musicOn]);
+
+  useEffect(() => {
     // Play only while running AND the music toggle is on.
     if (gs === "RUNNING" && musicOn) {
       const music = ensureGameMusic(gameMusicRef);
@@ -197,7 +255,8 @@ export function GamePage() {
     return () => {
       stopSixtySevenReplayRecording(recorderRef, replayStopTimerRef);
       clearReplayUrl(setSixtySevenReplayUrl, replayUrlRef);
-      gameMusicRef.current?.pause();
+      pauseAudioRef(landingMusicRef);
+      pauseAudioRef(gameMusicRef);
     };
   }, []);
 
@@ -205,8 +264,6 @@ export function GamePage() {
     gameState?.countdownEndsAt && gameState.countdownEndsAt > now
       ? Math.ceil((gameState.countdownEndsAt - now) / 1000)
       : 0;
-
-  const showLanding = gs === "MENU" && !wantsCalibration;
 
   return (
     <main className="relative min-h-screen bg-neutral-950 text-neutral-100">
@@ -218,7 +275,7 @@ export function GamePage() {
           connected={connected}
           onStart={handleStart}
           musicOn={musicOn}
-          onToggleMusic={() => setMusicOn((value) => !value)}
+          onToggleMusic={handleToggleMusic}
           zombieFace={zombieFace}
           headAvatar={headAvatar}
           onZombieFaceChange={setZombieFace}
@@ -359,6 +416,30 @@ function ensureGameMusic(musicRef: MutableRefObject<HTMLAudioElement | null>) {
     const audio = new Audio(GAME_MUSIC_URL);
     audio.loop = true;
     audio.volume = 0.55;
+    audio.preload = "auto";
+    musicRef.current = audio;
+  }
+  return musicRef.current;
+}
+
+function pauseAudioRef(musicRef: MutableRefObject<HTMLAudioElement | null>) {
+  musicRef.current?.pause();
+}
+
+function playLandingMusic(musicRef: MutableRefObject<HTMLAudioElement | null>) {
+  const music = ensureLandingMusic(musicRef);
+  void music.play().catch(() => {
+    // Browsers may wait for an explicit interaction before allowing menu music.
+  });
+}
+
+function ensureLandingMusic(
+  musicRef: MutableRefObject<HTMLAudioElement | null>,
+) {
+  if (!musicRef.current) {
+    const audio = new Audio(LANDING_MUSIC_URL);
+    audio.loop = true;
+    audio.volume = 0.5;
     audio.preload = "auto";
     musicRef.current = audio;
   }

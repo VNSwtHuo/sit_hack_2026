@@ -1,13 +1,14 @@
 export type GameState = 'MENU' | 'CALIBRATION' | 'COUNTDOWN' | 'RUNNING' | 'PAUSED' | 'GAME_OVER';
 export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
 export type Lane = 'left' | 'center' | 'right';
-export type ObstacleType = 'JUMP' | 'DODGE_LEFT' | 'DODGE_RIGHT' | 'SIX_SEVEN';
+export type ObstacleType = 'JUMP' | 'DUCK' | 'DODGE_LEFT' | 'DODGE_RIGHT' | 'SIX_SEVEN';
 
 export interface MotionPayload {
   runningIntensity: number;
   playerSpeed: number;
   isRunning: boolean;
   jumpDetected: boolean;
+  duckDetected: boolean;
   lane: Lane;
   sixtySevenCount: number;
   confidence: number;

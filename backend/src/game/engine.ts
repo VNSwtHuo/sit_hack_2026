@@ -128,6 +128,7 @@ function tryResolveCurrentObstacle(session: GameSession, motion: MotionPayload) 
   const type = session.currentObstacle.type;
   const success =
     (type === 'JUMP' && motion.jumpDetected) ||
+    (type === 'DUCK' && motion.duckDetected) ||
     (type === 'DODGE_LEFT' && motion.lane === 'left') ||
     (type === 'DODGE_RIGHT' && motion.lane === 'right') ||
     (type === 'SIX_SEVEN' && motion.sixtySevenCount > session.lastSixtySevenCount);
