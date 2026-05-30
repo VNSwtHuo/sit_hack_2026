@@ -10,6 +10,7 @@ import {
   CountdownOverlay,
   GameOverOverlay,
   GetInFrameOverlay,
+  LevelTransitionOverlay,
   PausedOverlay,
 } from "../components/Overlays";
 import { useZombieGame } from "../game/useZombieGame";
@@ -119,6 +120,10 @@ export function GamePage() {
     gameState?.countdownEndsAt && gameState.countdownEndsAt > now
       ? Math.ceil((gameState.countdownEndsAt - now) / 1000)
       : 0;
+  const levelTransitionCountdown =
+    gameState?.nextLevelStartsAt && gameState.nextLevelStartsAt > now
+      ? Math.ceil((gameState.nextLevelStartsAt - now) / 1000)
+      : 0;
 
   const showLanding = gs === "MENU" && !wantsCalibration;
 
@@ -200,6 +205,13 @@ export function GamePage() {
             ) : null}
 
             {gs === "COUNTDOWN" ? <CountdownOverlay value={countdown} /> : null}
+
+            {levelTransitionCountdown > 0 && gameState ? (
+              <LevelTransitionOverlay
+                currentLevel={Math.max(1, gameState.currentLevel - 1)}
+                secondsRemaining={levelTransitionCountdown}
+              />
+            ) : null}
 
             {gs === "PAUSED" ? <PausedOverlay onResume={resume} /> : null}
 

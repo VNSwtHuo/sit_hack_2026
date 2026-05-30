@@ -1,12 +1,19 @@
-import type { Difficulty, ObstacleType } from '../types.js';
+import type { Difficulty, ObstacleType } from "../types.js";
 
-export const DEFAULT_DIFFICULTY: Difficulty = 'EASY';
+export const DEFAULT_DIFFICULTY: Difficulty = "EASY";
 export const GAME_UPDATE_MS = 100;
 export const MOTION_STALE_MS = 650;
-export const OBSTACLE_TYPES: ObstacleType[] = ['JUMP', 'DODGE_LEFT', 'DODGE_RIGHT', 'SIX_SEVEN'];
+export const OBSTACLE_TYPES: ObstacleType[] = [
+  "JUMP",
+  "DODGE_LEFT",
+  "DODGE_RIGHT",
+  "SIX_SEVEN",
+];
 export const SPEED_INCREMENT_INTERVAL_MS = 15000;
 export const SPEED_INCREMENT = 0.08;
 export const MAX_SPEED_MULTIPLIER = 2.2;
+export const LEVEL_ONE_SURVIVE_SECONDS = 10;
+export const LEVEL_TRANSITION_MS = 5000;
 
 export interface DifficultyConfig {
   chaseRate: number;
@@ -62,16 +69,27 @@ export function getSpeedMultiplier(survivalTimeSeconds: number) {
   return Math.min(MAX_SPEED_MULTIPLIER, 1 + increments * SPEED_INCREMENT);
 }
 
-export function getDynamicDifficultyConfig(survivalTimeSeconds: number): DifficultyConfig {
+export function getDynamicDifficultyConfig(
+  survivalTimeSeconds: number,
+): DifficultyConfig {
   const base = DIFFICULTY_CONFIGS.EASY;
   const speedMultiplier = getSpeedMultiplier(survivalTimeSeconds);
 
   return {
     ...base,
     chaseRate: base.chaseRate * speedMultiplier,
-    obstacleMinMs: Math.max(1800, Math.round(base.obstacleMinMs / speedMultiplier)),
-    obstacleMaxMs: Math.max(2800, Math.round(base.obstacleMaxMs / speedMultiplier)),
-    obstacleDurationMs: Math.max(1800, Math.round(base.obstacleDurationMs / Math.sqrt(speedMultiplier))),
+    obstacleMinMs: Math.max(
+      1800,
+      Math.round(base.obstacleMinMs / speedMultiplier),
+    ),
+    obstacleMaxMs: Math.max(
+      2800,
+      Math.round(base.obstacleMaxMs / speedMultiplier),
+    ),
+    obstacleDurationMs: Math.max(
+      1800,
+      Math.round(base.obstacleDurationMs / Math.sqrt(speedMultiplier)),
+    ),
     missPenalty: Math.round(base.missPenalty * speedMultiplier),
   };
 }

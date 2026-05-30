@@ -4,6 +4,7 @@ import {
   POSE,
   type CalibrationProfile,
   type MotionPayload,
+  type Obstacle,
   type PoseLandmark,
 } from './motionTypes';
 import { getTorsoSample } from './calibration';
@@ -14,8 +15,7 @@ const KNEE_SPEED_DEADZONE = 0.18;
 const KNEE_SPEED_FULL_RUN = 1.25;
 const MIN_KNEE_VERTICAL_RANGE = 0.035;
 const SIXTY_SEVEN_ALTERNATIONS_REQUIRED = 10;
-const JUMP_HEIGHT_MULTIPLIER = 0.7;
-const JUMP_UPWARD_VELOCITY_MULTIPLIER = 0.55;
+const JUMP_TASK_HEIGHT_MULTIPLIER = 0.08;
 
 interface MotionFrame {
   leftKneeRelativeY: number;
@@ -26,12 +26,16 @@ interface MotionFrame {
 
 type WristPhase = 'unknown' | 'leftGreater' | 'rightGreater';
 
-export function useMotionDetection(landmarks: PoseLandmark[], calibration: CalibrationProfile | null) {
+export function useMotionDetection(
+  landmarks: PoseLandmark[],
+  calibration: CalibrationProfile | null,
+  activeObstacle: Obstacle | null,
+) {
   const [motion, setMotion] = useState<MotionPayload>(DEFAULT_MOTION);
   const framesRef = useRef<MotionFrame[]>([]);
   const smoothSpeedRef = useRef<number[]>([]);
-  const jumpingRef = useRef(false);
-  const jumpCooldownRef = useRef(0);
+  const jumpObstacleIdRef = useRef<string | null>(null);
+  const jumpBaselineTorsoYRef = useRef<number | null>(null);
   const wristPhaseRef = useRef<WristPhase>('unknown');
   const wristAlternationCountRef = useRef(0);
   const sixtySevenCountRef = useRef(0);
@@ -73,7 +77,13 @@ export function useMotionDetection(landmarks: PoseLandmark[], calibration: Calib
     const playerSpeed = smoothSpeedRef.current.reduce((sum, value) => sum + value, 0) / smoothSpeedRef.current.length;
     const isRunning = playerSpeed > 0.16;
     const lane = detectLane(sample.centerX, calibration);
-    const jumpDetected = detectJump(framesRef.current, calibration, now, jumpingRef, jumpCooldownRef);
+    const jumpDetected = detectJump(
+      nextFrame.torsoY,
+      calibration,
+      activeObstacle,
+      jumpObstacleIdRef,
+      jumpBaselineTorsoYRef,
+    );
     updateSixtySeven(leftWrist.y, rightWrist.y, wristPhaseRef, wristAlternationCountRef, sixtySevenCountRef);
 
     setMotion({
@@ -86,7 +96,7 @@ export function useMotionDetection(landmarks: PoseLandmark[], calibration: Calib
       confidence: sample.confidence,
       timestamp: now,
     });
-  }, [landmarks, calibration]);
+  }, [landmarks, calibration, activeObstacle]);
 
   return motion;
 }
@@ -135,37 +145,29 @@ function detectLane(centerX: number, calibration: CalibrationProfile) {
 }
 
 function detectJump(
-  frames: MotionFrame[],
+  torsoY: number,
   calibration: CalibrationProfile,
-  now: number,
-  jumpingRef: MutableRefObject<boolean>,
-  jumpCooldownRef: MutableRefObject<number>,
+  activeObstacle: Obstacle | null,
+  obstacleIdRef: MutableRefObject<string | null>,
+  baselineTorsoYRef: MutableRefObject<number | null>,
 ) {
-  const current = frames.at(-1);
-  const previous = frames.at(-2);
-  if (!current) {
+  if (activeObstacle?.type !== 'JUMP') {
+    obstacleIdRef.current = null;
+    baselineTorsoYRef.current = null;
     return false;
   }
 
-  const torsoY = current.torsoY;
-  const upwardOffset = calibration.centerY - torsoY;
-  const deltaSeconds = previous ? Math.max(0.001, (current.time - previous.time) / 1000) : 0;
-  const upwardVelocity = previous ? (previous.torsoY - current.torsoY) / deltaSeconds : 0;
-  const heightTriggered = upwardOffset > calibration.jumpThreshold * JUMP_HEIGHT_MULTIPLIER;
-  const velocityTriggered = upwardVelocity > calibration.bodyScale * JUMP_UPWARD_VELOCITY_MULTIPLIER;
-  const landed = upwardOffset < calibration.jumpThreshold * 0.35;
-
-  if (jumpingRef.current && landed) {
-    jumpingRef.current = false;
+  if (obstacleIdRef.current !== activeObstacle.id) {
+    obstacleIdRef.current = activeObstacle.id;
+    baselineTorsoYRef.current = torsoY;
+    return false;
   }
 
-  if (!jumpingRef.current && now > jumpCooldownRef.current && (heightTriggered || velocityTriggered)) {
-    jumpingRef.current = true;
-    jumpCooldownRef.current = now + 650;
-    return true;
-  }
+  const baselineTorsoY = baselineTorsoYRef.current ?? torsoY;
+  const jumpHeight = baselineTorsoY - torsoY;
+  const requiredHeight = Math.max(0.018, calibration.bodyScale * JUMP_TASK_HEIGHT_MULTIPLIER);
 
-  return false;
+  return jumpHeight > requiredHeight;
 }
 
 function updateSixtySeven(
