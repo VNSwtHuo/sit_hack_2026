@@ -7,13 +7,12 @@ import {
   pauseSession,
   restartSession,
   resumeSession,
-  setDifficulty,
   startCalibration,
   tickSession,
   toPublicGameState,
 } from './game/engine.js';
 import { GAME_UPDATE_MS } from './game/constants.js';
-import type { Difficulty, GameSession, MotionPayload } from './types.js';
+import type { GameSession, MotionPayload } from './types.js';
 
 const sessions = new Map<string, GameSession>();
 
@@ -33,13 +32,6 @@ function bindSessionHandlers(socket: Socket) {
       session.playerName = playerName;
     }
     emitGameState(socket, session);
-  });
-
-  socket.on('set-difficulty', (difficulty: Difficulty) => {
-    if (difficulty === 'EASY' || difficulty === 'NORMAL' || difficulty === 'HARD') {
-      setDifficulty(session, difficulty);
-      emitGameState(socket, session);
-    }
   });
 
   socket.on('start-calibration', () => {

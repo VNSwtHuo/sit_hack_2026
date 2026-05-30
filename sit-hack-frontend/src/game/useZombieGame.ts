@@ -5,7 +5,7 @@ import {
   updateCalibration,
   type CalibrationSample,
 } from '../motion/calibration';
-import type { CalibrationState, Difficulty } from '../motion/motionTypes';
+import type { CalibrationState } from '../motion/motionTypes';
 import { useGameSocket } from '../motion/useGameSocket';
 import { useMotionDetection } from '../motion/useMotionDetection';
 import { usePoseTracker } from '../motion/usePoseTracker';
@@ -89,13 +89,6 @@ export function useZombieGame() {
     setCalibration(createCalibrationState());
   }, []);
 
-  const chooseDifficulty = useCallback(
-    (difficulty: Difficulty) => {
-      game.setDifficulty(difficulty);
-    },
-    [game],
-  );
-
   return {
     // camera + pose
     videoRef,
@@ -118,7 +111,6 @@ export function useZombieGame() {
     connected: game.connected,
     gameState: game.gameState,
     boostMessage: game.boostMessage,
-    chooseDifficulty,
     confirmCalibration: game.confirmCalibration,
     pause: game.pause,
     resume: game.resume,

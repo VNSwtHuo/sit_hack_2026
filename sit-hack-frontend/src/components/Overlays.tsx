@@ -103,11 +103,13 @@ export function PausedOverlay({ onResume }: { onResume: () => void }) {
 export function GameOverOverlay({
   score,
   survivalTime,
+  faceSnapshot,
   onPlayAgain,
   onMenu,
 }: {
   score: number;
   survivalTime: number;
+  faceSnapshot: string | null;
   onPlayAgain: () => void;
   onMenu: () => void;
 }) {
@@ -118,11 +120,21 @@ export function GameOverOverlay({
         animate={{ scale: 1, opacity: 1 }}
         className="flex w-full max-w-md flex-col items-center gap-5"
       >
-        <span className="text-7xl">💀</span>
+        {faceSnapshot ? (
+          <img
+            src={faceSnapshot}
+            alt="Your face after the zombie attack"
+            className="h-32 w-32 rounded-full border-4 border-red-500 object-cover"
+          />
+        ) : (
+          <span className="text-7xl">💀</span>
+        )}
         <h2 className="glitch text-5xl font-black uppercase tracking-widest text-red-500" data-text="CAUGHT!">
           CAUGHT!
         </h2>
-        <p className="text-sm text-neutral-400">The horde got you. Here&apos;s how you did:</p>
+        <p className="max-w-sm text-sm text-neutral-300">
+          You got eaten alive by zombie... honestly, five-star meal presentation.
+        </p>
         <div className="grid w-full grid-cols-2 gap-3">
           <Stat label="Final score" value={Math.round(score).toString()} />
           <Stat label="Survived" value={`${survivalTime.toFixed(1)}s`} />

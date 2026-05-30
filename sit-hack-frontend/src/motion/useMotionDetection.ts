@@ -10,17 +10,19 @@ import { getTorsoSample } from './calibration';
 
 const RUN_HISTORY_SIZE = 8;
 const SEND_HISTORY_SIZE = 4;
+const KNEE_SPEED_DEADZONE = 0.18;
+const KNEE_SPEED_FULL_RUN = 1.25;
+const MIN_KNEE_VERTICAL_RANGE = 0.035;
+const SIXTY_SEVEN_ALTERNATIONS_REQUIRED = 3;
 
 interface MotionFrame {
-  leftKneeY: number;
-  rightKneeY: number;
-  leftAnkleY: number;
-  rightAnkleY: number;
+  leftKneeRelativeY: number;
+  rightKneeRelativeY: number;
   torsoY: number;
   time: number;
 }
 
-type WristPhase = 'unknown' | 'high' | 'low';
+type WristPhase = 'unknown' | 'leftGreater' | 'rightGreater';
 
 export function useMotionDetection(landmarks: PoseLandmark[], calibration: CalibrationProfile | null) {
   const [motion, setMotion] = useState<MotionPayload>(DEFAULT_MOTION);
@@ -29,6 +31,7 @@ export function useMotionDetection(landmarks: PoseLandmark[], calibration: Calib
   const jumpingRef = useRef(false);
   const jumpCooldownRef = useRef(0);
   const wristPhaseRef = useRef<WristPhase>('unknown');
+  const wristAlternationCountRef = useRef(0);
   const sixtySevenCountRef = useRef(0);
 
   useEffect(() => {
@@ -39,21 +42,17 @@ export function useMotionDetection(landmarks: PoseLandmark[], calibration: Calib
     const sample = getTorsoSample(landmarks);
     const leftKnee = landmarks[POSE.leftKnee];
     const rightKnee = landmarks[POSE.rightKnee];
-    const leftAnkle = landmarks[POSE.leftAnkle];
-    const rightAnkle = landmarks[POSE.rightAnkle];
     const leftWrist = landmarks[POSE.leftWrist];
     const rightWrist = landmarks[POSE.rightWrist];
 
-    if (!sample || !leftKnee || !rightKnee || !leftAnkle || !rightAnkle || !leftWrist || !rightWrist) {
+    if (!sample || !leftKnee || !rightKnee || !leftWrist || !rightWrist) {
       return;
     }
 
     const now = Date.now();
     const nextFrame: MotionFrame = {
-      leftKneeY: leftKnee.y,
-      rightKneeY: rightKnee.y,
-      leftAnkleY: leftAnkle.y,
-      rightAnkleY: rightAnkle.y,
+      leftKneeRelativeY: leftKnee.y - sample.centerY,
+      rightKneeRelativeY: rightKnee.y - sample.centerY,
       torsoY: sample.centerY,
       time: now,
     };
@@ -70,10 +69,10 @@ export function useMotionDetection(landmarks: PoseLandmark[], calibration: Calib
     }
 
     const playerSpeed = smoothSpeedRef.current.reduce((sum, value) => sum + value, 0) / smoothSpeedRef.current.length;
-    const isRunning = playerSpeed > 0.22;
+    const isRunning = playerSpeed > 0.16;
     const lane = detectLane(sample.centerX, calibration);
     const jumpDetected = detectJump(nextFrame.torsoY, calibration, now, jumpingRef, jumpCooldownRef);
-    updateSixtySeven(leftWrist.y, rightWrist.y, calibration, wristPhaseRef, sixtySevenCountRef);
+    updateSixtySeven(leftWrist.y, rightWrist.y, wristPhaseRef, wristAlternationCountRef, sixtySevenCountRef);
 
     setMotion({
       runningIntensity,
@@ -95,21 +94,31 @@ function detectRunning(frames: MotionFrame[], bodyScale: number) {
     return 0;
   }
 
-  let totalMotion = 0;
+  let totalKneeVelocity = 0;
+  let sampleCount = 0;
   for (let index = 1; index < frames.length; index += 1) {
     const previous = frames[index - 1];
     const current = frames[index];
-    totalMotion += Math.abs(current.leftKneeY - previous.leftKneeY);
-    totalMotion += Math.abs(current.rightKneeY - previous.rightKneeY);
-    totalMotion += Math.abs(current.leftAnkleY - previous.leftAnkleY) * 0.8;
-    totalMotion += Math.abs(current.rightAnkleY - previous.rightAnkleY) * 0.8;
+    const deltaSeconds = Math.max(0.001, (current.time - previous.time) / 1000);
+    const leftVelocity = Math.abs(current.leftKneeRelativeY - previous.leftKneeRelativeY) / deltaSeconds;
+    const rightVelocity = Math.abs(current.rightKneeRelativeY - previous.rightKneeRelativeY) / deltaSeconds;
+
+    totalKneeVelocity += leftVelocity + rightVelocity;
+    sampleCount += 2;
   }
 
-  const averageMotion = totalMotion / (frames.length - 1);
-  const normalizedMotion = averageMotion / Math.max(0.08, bodyScale);
-  const deadZone = 0.035;
-  const scaled = (normalizedMotion - deadZone) / 0.22;
-  return clamp(scaled, 0, 1);
+  const leftRange = getRange(frames.map((frame) => frame.leftKneeRelativeY));
+  const rightRange = getRange(frames.map((frame) => frame.rightKneeRelativeY));
+  const normalizedRange = Math.max(leftRange, rightRange) / Math.max(0.08, bodyScale);
+  const rangeMultiplier = clamp(normalizedRange / MIN_KNEE_VERTICAL_RANGE, 0, 1);
+  const normalizedVelocity = (totalKneeVelocity / sampleCount) / Math.max(0.08, bodyScale);
+  const scaled = (normalizedVelocity - KNEE_SPEED_DEADZONE) / (KNEE_SPEED_FULL_RUN - KNEE_SPEED_DEADZONE);
+
+  return clamp(scaled, 0, 1) * rangeMultiplier;
+}
+
+function getRange(values: number[]) {
+  return Math.max(...values) - Math.min(...values);
 }
 
 function detectLane(centerX: number, calibration: CalibrationProfile) {
@@ -149,16 +158,19 @@ function detectJump(
 function updateSixtySeven(
   leftWristY: number,
   rightWristY: number,
-  calibration: CalibrationProfile,
   phaseRef: MutableRefObject<WristPhase>,
+  alternationCountRef: MutableRefObject<number>,
   countRef: MutableRefObject<number>,
 ) {
-  const bothHigh = leftWristY < calibration.wristHighY && rightWristY < calibration.wristHighY;
-  const bothLow = leftWristY > calibration.wristLowY && rightWristY > calibration.wristLowY;
-  const nextPhase: WristPhase = bothHigh ? 'high' : bothLow ? 'low' : phaseRef.current;
+  const nextPhase: WristPhase = leftWristY > rightWristY ? 'leftGreater' : 'rightGreater';
 
   if (phaseRef.current !== 'unknown' && nextPhase !== phaseRef.current) {
+    alternationCountRef.current += 1;
+  }
+
+  if (alternationCountRef.current >= SIXTY_SEVEN_ALTERNATIONS_REQUIRED) {
     countRef.current += 1;
+    alternationCountRef.current = 0;
   }
 
   phaseRef.current = nextPhase;

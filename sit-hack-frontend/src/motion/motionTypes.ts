@@ -55,6 +55,7 @@ export interface PublicGameState {
   sessionId: string;
   gameState: GameState;
   difficulty: Difficulty;
+  speedMultiplier: number;
   playerSpeed: number;
   runningIntensity: number;
   zombieDistance: number;

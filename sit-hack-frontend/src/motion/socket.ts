@@ -1,5 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
-import type { Difficulty, MotionPayload, Obstacle, PublicGameState } from './motionTypes';
+import type { MotionPayload, Obstacle, PublicGameState } from './motionTypes';
 
 export interface ServerToClientEvents {
   'session-created': (state: PublicGameState) => void;
@@ -11,7 +11,6 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   'join-session': (payload: { playerName?: string }) => void;
-  'set-difficulty': (difficulty: Difficulty) => void;
   'start-calibration': () => void;
   'confirm-calibration': () => void;
   pause: () => void;

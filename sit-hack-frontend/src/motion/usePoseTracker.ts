@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PoseLandmark } from './motionTypes';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { PoseLandmark } from "./motionTypes";
 
 interface PoseResult {
   poseLandmarks?: PoseLandmark[];
+  segmentationMask?: HTMLCanvasElement | HTMLImageElement | ImageBitmap;
 }
 
 interface MediaPipePose {
@@ -55,13 +56,17 @@ const POSE_CONNECTIONS: Array<[number, number]> = [
 ];
 
 const SCRIPT_URLS = [
-  'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
-  'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js',
+  "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js",
+  "https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js",
 ];
+
+const PERSON_BACKGROUND_URL = "/background.png";
 
 export function usePoseTracker() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const cameraRef = useRef<MediaPipeCamera | null>(null);
   const poseRef = useRef<MediaPipePose | null>(null);
   const frameTimesRef = useRef<number[]>([]);
@@ -78,44 +83,105 @@ export function usePoseTracker() {
       return;
     }
 
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext("2d");
     if (!context) {
       return;
     }
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    const videoWidth = video.videoWidth || 640;
+    const videoHeight = video.videoHeight || 480;
+
+    canvas.width = Math.round(videoWidth);
+    canvas.height = Math.round(videoHeight);
     context.save();
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const backgroundImage = backgroundImageRef.current;
+    if (backgroundImage?.complete && backgroundImage.naturalWidth > 0) {
+      drawImageCover(context, backgroundImage, canvas.width, canvas.height);
+    } else {
+      context.fillStyle = "#0f172a";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    if (results.segmentationMask) {
+      const maskCanvas =
+        maskCanvasRef.current ?? document.createElement("canvas");
+      maskCanvas.width = canvas.width;
+      maskCanvas.height = canvas.height;
+      maskCanvasRef.current = maskCanvas;
+
+      const maskContext = maskCanvas.getContext("2d");
+      if (maskContext) {
+        maskContext.save();
+        maskContext.clearRect(0, 0, canvas.width, canvas.height);
+        maskContext.drawImage(
+          results.segmentationMask,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        );
+        maskContext.globalCompositeOperation = "source-in";
+        maskContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+        maskContext.restore();
+
+        context.drawImage(maskCanvas, 0, 0, canvas.width, canvas.height);
+      } else {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+    } else {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
 
     if (results.poseLandmarks) {
-      context.strokeStyle = '#38bdf8';
+      context.strokeStyle = "#38bdf8";
       context.lineWidth = 3;
       POSE_CONNECTIONS.forEach(([from, to]) => {
         const a = results.poseLandmarks?.[from];
         const b = results.poseLandmarks?.[to];
-        if (!a || !b || (a.visibility ?? 1) < 0.35 || (b.visibility ?? 1) < 0.35) {
+        if (
+          !a ||
+          !b ||
+          (a.visibility ?? 1) < 0.35 ||
+          (b.visibility ?? 1) < 0.35
+        ) {
           return;
         }
         context.beginPath();
-        context.moveTo(a.x * canvas.width, a.y * canvas.height);
-        context.lineTo(b.x * canvas.width, b.y * canvas.height);
+        context.moveTo(a.x * videoWidth, a.y * videoHeight);
+        context.lineTo(b.x * videoWidth, b.y * videoHeight);
         context.stroke();
       });
 
-      context.fillStyle = '#facc15';
-      results.poseLandmarks.forEach((landmark) => {
-        if ((landmark.visibility ?? 1) < 0.35) {
+      context.fillStyle = "#facc15";
+      results.poseLandmarks.forEach((landmark, index) => {
+        if (index <= 10 || (landmark.visibility ?? 1) < 0.35) {
           return;
         }
         context.beginPath();
-        context.arc(landmark.x * canvas.width, landmark.y * canvas.height, 4, 0, Math.PI * 2);
+        context.arc(
+          landmark.x * videoWidth,
+          landmark.y * videoHeight,
+          4,
+          0,
+          Math.PI * 2,
+        );
         context.fill();
       });
     }
 
     context.restore();
+  }, []);
+
+  useEffect(() => {
+    const backgroundImage = new Image();
+    backgroundImage.src = PERSON_BACKGROUND_URL;
+    backgroundImageRef.current = backgroundImage;
+
+    return () => {
+      backgroundImageRef.current = null;
+    };
   }, []);
 
   const start = useCallback(async () => {
@@ -127,17 +193,21 @@ export function usePoseTracker() {
       await loadMediaPipeScripts();
 
       if (!window.Pose || !window.Camera) {
-        throw new Error('MediaPipe scripts loaded without Pose or Camera globals');
+        throw new Error(
+          "MediaPipe scripts loaded without Pose or Camera globals",
+        );
       }
 
       const pose = new window.Pose({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+        locateFile: (file) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
       });
 
       pose.setOptions({
         modelComplexity: 0,
         smoothLandmarks: true,
-        enableSegmentation: false,
+        enableSegmentation: true,
+        smoothSegmentation: true,
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5,
       });
@@ -145,14 +215,19 @@ export function usePoseTracker() {
       pose.onResults((results: PoseResult) => {
         const now = performance.now();
         frameTimesRef.current.push(now);
-        frameTimesRef.current = frameTimesRef.current.filter((time) => now - time < 1000);
+        frameTimesRef.current = frameTimesRef.current.filter(
+          (time) => now - time < 1000,
+        );
         setFps(frameTimesRef.current.length);
 
         const nextLandmarks = results.poseLandmarks ?? [];
         setLandmarks(nextLandmarks);
         setConfidence(
           nextLandmarks.length
-            ? nextLandmarks.reduce((sum, landmark) => sum + (landmark.visibility ?? 1), 0) / nextLandmarks.length
+            ? nextLandmarks.reduce(
+                (sum, landmark) => sum + (landmark.visibility ?? 1),
+                0,
+              ) / nextLandmarks.length
             : 0,
         );
         drawResults(results);
@@ -173,7 +248,11 @@ export function usePoseTracker() {
       setIsRunning(true);
       setError(null);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Unable to start camera');
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to start camera",
+      );
       setIsRunning(false);
     }
   }, [drawResults]);
@@ -201,22 +280,40 @@ export function usePoseTracker() {
   };
 }
 
+function drawImageCover(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+) {
+  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const canvasRatio = width / height;
+  const drawWidth = imageRatio > canvasRatio ? height * imageRatio : width;
+  const drawHeight = imageRatio > canvasRatio ? height : width / imageRatio;
+  const dx = (width - drawWidth) / 2;
+  const dy = (height - drawHeight) / 2;
+
+  context.drawImage(image, dx, dy, drawWidth, drawHeight);
+}
+
 function loadMediaPipeScripts() {
   return Promise.all(SCRIPT_URLS.map(loadScript));
 }
 
 function loadScript(src: string) {
   return new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[src="${src}"]`,
+    );
     if (existing) {
       resolve();
       return;
     }
 
-    const script = document.createElement('script');
+    const script = document.createElement("script");
     script.src = src;
     script.async = true;
-    script.crossOrigin = 'anonymous';
+    script.crossOrigin = "anonymous";
     script.onload = () => resolve();
     script.onerror = () => reject(new Error(`Failed to load ${src}`));
     document.head.appendChild(script);
