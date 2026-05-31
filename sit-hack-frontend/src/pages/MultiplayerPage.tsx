@@ -24,7 +24,7 @@ import { usePoseTracker } from "../motion/usePoseTracker";
 
 const MOTION_SEND_INTERVAL_MS = 66;
 const DEFAULT_TARGET_DISTANCE = 1000;
-const MIN_TARGET_DISTANCE = 200;
+const MIN_TARGET_DISTANCE = 100;
 const MAX_TARGET_DISTANCE = 10000;
 
 const clampTarget = (value: number) =>
@@ -314,7 +314,7 @@ function LobbySetup({
       <div className="mt-6 mb-8 text-center">
         <h1 className="font-zombie text-5xl sm:text-6xl">Two Players</h1>
         <p className="mt-2 text-sm uppercase tracking-[0.3em] text-neutral-300">
-          {connected ? "LAN lobby online" : "Connecting…"}
+          {connected ? "lobby online" : "Connecting…"}
         </p>
       </div>
 
