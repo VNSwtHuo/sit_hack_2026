@@ -10,9 +10,9 @@ export const OBSTACLE_TYPES: ObstacleType[] = [
   "DODGE_RIGHT",
   "SIX_SEVEN",
 ];
-export const SPEED_INCREMENT_INTERVAL_MS = 1500;
+export const SPEED_INCREMENT_INTERVAL_MS = 2000;
 export const SPEED_INCREMENT = 0.2;
-export const MAX_SPEED_MULTIPLIER = 2.2;
+export const MAX_SPEED_MULTIPLIER = 4;
 
 export interface DifficultyConfig {
   chaseRate: number;
