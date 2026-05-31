@@ -79,7 +79,6 @@ export function Landing({
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* <div className="scanlines pointer-events-none absolute inset-0 opacity-30" /> */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(132,204,22,0.18),transparent_60%)]" />
 
       {/* Music toggle — top right */}

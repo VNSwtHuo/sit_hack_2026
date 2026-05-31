@@ -155,12 +155,6 @@ export function GameOverOverlay({
         ) : (
           <span className="text-7xl">💀</span>
         )}
-        {/* <h2
-          className="glitch text-5xl font-black uppercase tracking-widest text-red-500"
-          data-text="CAUGHT!"
-        >
-          CAUGHT!
-        </h2> */}
         <h2 className="zombie-title text-[100px] font-black uppercase leading-none text-red-500">
           CAUGHT!
         </h2>
