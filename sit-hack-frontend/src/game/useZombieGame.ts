@@ -13,7 +13,7 @@ import { usePoseTracker } from '../motion/usePoseTracker';
 const MOTION_SEND_INTERVAL_MS = 66;
 
 /**
- * Central orchestrator for the Zombie Run experience. It keeps the camera,
+ * Central orchestrator for the The Last Braincell experience. It keeps the camera,
  * pose tracker, local motion detection, calibration state machine and the
  * Socket.IO game connection alive across every screen so the video element is
  * never remounted mid-game.

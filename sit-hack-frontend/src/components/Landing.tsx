@@ -97,34 +97,58 @@ export function Landing({
       </div>
 
       {/* Customize zombie face — bottom left */}
-      <div className="absolute bottom-4 left-8 z-30">
+      <div className="absolute bottom-4 left-3 sm:left-8 z-30">
         <button
           onClick={() => setShowZombieModal(true)}
-          className="w-27 h-27 rounded-full border-2 border-[#17b978]/50 bg-[#086972]/80 hover:bg-[#17b978]/20 hover:border-[#17b978] transition-all hover:scale-110 flex items-center justify-center px-3"
+          className="
+      w-20 h-20
+      sm:w-24 sm:h-24
+      md:w-27 md:h-27
+      rounded-full border-2 border-[#17b978]/50
+      bg-[#086972]/80
+      hover:bg-[#17b978]/20
+      hover:border-[#17b978]
+      transition-all hover:scale-110
+      flex items-center justify-center
+      px-2 sm:px-3
+    "
           style={{
             fontFamily: ZOMBIE_FONT,
-            fontSize: "1.15rem",
             color: "#a7ff83",
-            lineHeight: 1.2,
+            lineHeight: 1.1,
           }}
         >
-          <span className="text-center">Customize zombie face</span>
+          <span className="text-center text-[0.75rem] sm:text-[0.95rem] md:text-[1.15rem]">
+            Customize zombie face
+          </span>
         </button>
       </div>
 
       {/* Customize head zombie — bottom right */}
-      <div className="absolute bottom-4 right-8 z-30">
+      <div className="absolute bottom-4 right-3 sm:right-8 z-30">
         <button
           onClick={() => setShowAvatarModal(true)}
-          className="w-27 h-27 rounded-full border-2 border-[#17b978]/50 bg-[#086972]/80 hover:bg-[#17b978]/20 hover:border-[#17b978] transition-all hover:scale-110 flex items-center justify-center px-3"
+          className="
+      w-20 h-20
+      sm:w-24 sm:h-24
+      md:w-27 md:h-27
+      rounded-full border-2 border-[#17b978]/50
+      bg-[#086972]/80
+      hover:bg-[#17b978]/20
+      hover:border-[#17b978]
+      transition-all hover:scale-110
+      flex items-center justify-center
+      px-2 sm:px-3
+    "
           style={{
             fontFamily: ZOMBIE_FONT,
-            fontSize: "1.15rem",
             color: "#a7ff83",
-            lineHeight: 1.2,
+            lineHeight: 1.1,
           }}
         >
-          <span className="text-center">Customize head zombie</span>
+          <span className="text-center text-[0.75rem] sm:text-[0.95rem] md:text-[1.15rem]">
+            Customize head zombie
+          </span>
         </button>
       </div>
 
@@ -139,7 +163,7 @@ export function Landing({
           SIT HACK 2026
         </span>
         <h1 className="zombie-title text-[100px] sm:text-[100px] md:text-[120px] lg:text-[145px]">
-          ZOMBIE RUN
+          The Last Braincell
         </h1>
       </motion.div>
 
@@ -200,6 +224,12 @@ export function Landing({
               TWO PLAYER
             </span>
           </button>
+        </div>
+        <div className="mt-5 -mb-15 text-xs text-neutral-600">
+          <p>
+            © 2026 ESROP IC2 Summer Interns. All rights reserved. Made with help
+            from KM Kyaw and AI.
+          </p>
         </div>
       </motion.div>
 

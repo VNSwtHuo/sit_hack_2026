@@ -1,4 +1,4 @@
-# 🧟 Zombie Run
+# 🧟 The Last Braincell
 
 A browser-based apocalypse survival game controlled entirely by your **webcam**.
 Run in place to outpace the horde, jump / dodge / throw the viral **6 7** gesture to

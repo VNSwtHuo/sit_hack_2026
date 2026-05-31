@@ -33,7 +33,7 @@ const io = new Server(httpServer, {
 registerSocketHandlers(io);
 
 httpServer.listen(port, host, () => {
-  console.log(`Zombie Run backend listening on ${host}:${port}`);
+  console.log(`The Last Braincell backend listening on ${host}:${port}`);
   console.log(
     frontendOrigin === true
       ? 'Allowing connections from any origin (LAN-friendly).'

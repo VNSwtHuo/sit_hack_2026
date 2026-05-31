@@ -103,7 +103,7 @@ export function MotionDebugPage() {
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-800 pb-4">
           <div>
             <h1 className="text-2xl font-bold tracking-normal">
-              Zombie Run Motion Debug
+              The Last Braincell Motion Debug
             </h1>
             <p className="text-sm text-neutral-400">
               Client-side MediaPipe Pose plus Socket.IO game-state engine.
